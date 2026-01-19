@@ -91,6 +91,9 @@ All behavior must be callable and testable.
 |   |   |-- inputs.py            # read-only repos (bucket/market/factor/nav/beta/aux)
 |   |   `-- outputs.py           # write repos (feature/signal/weight/run)
 |   |-- services/               # Feature/Signal/Portfolio/Run orchestration
+|   |   |-- contracts.py         # run context/request/result contracts
+|   |   |-- run_audit_service.py # job_run lifecycle tracking
+|   |   `-- job_runner.py        # sync orchestration runner
 |   `-- cli.py                  # optional CLI runner (sync execution)
 |-- tests/
 |   |-- fixtures/               # deterministic test datasets

@@ -5,6 +5,7 @@ from typing import Mapping, Sequence, TypedDict
 
 from sqlalchemy import Column, Date, DateTime, Float, MetaData, String, Table, Text
 from sqlalchemy.dialects.postgresql import JSONB, insert
+from sqlalchemy import update
 from sqlalchemy.engine import Engine
 
 from .base import BaseRepo
@@ -169,3 +170,11 @@ class RunRepo(BaseRepo):
     def upsert_many(self, rows: Sequence[JobRunRow]) -> int:
         stmt = _upsert_statement(self._table, rows)
         return self._execute_many(stmt, rows)
+
+    def update_fields(self, run_id: str, fields: Mapping[str, object]) -> int:
+        if not fields:
+            return 0
+        stmt = (
+            update(self._table).where(self._table.c.run_id == run_id).values(**fields)
+        )
+        return self._execute(stmt)

@@ -15,6 +15,11 @@ class BaseRepo:
             result = connection.execute(stmt)
             return [dict(row._mapping) for row in result]
 
+    def _execute(self, stmt: Executable) -> int:
+        with self._engine.begin() as connection:
+            result = connection.execute(stmt)
+            return int(result.rowcount or 0)
+
     def _execute_many(
         self, stmt: Executable, rows: Sequence[Mapping[str, object]]
     ) -> int:
