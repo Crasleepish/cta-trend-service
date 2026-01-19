@@ -87,6 +87,9 @@ All behavior must be callable and testable.
 |   |   |-- db.py               # engine/session setup
 |   |   `-- schema.py           # SQLAlchemy Core table metadata
 |   |-- repo/                   # DB read/write (no business logic)
+|   |   |-- base.py              # shared repo helpers (fetch/upsert)
+|   |   |-- inputs.py            # read-only repos (bucket/market/factor/nav/beta/aux)
+|   |   `-- outputs.py           # write repos (feature/signal/weight/run)
 |   |-- services/               # Feature/Signal/Portfolio/Run orchestration
 |   `-- cli.py                  # optional CLI runner (sync execution)
 |-- tests/
@@ -94,9 +97,11 @@ All behavior must be callable and testable.
 |   |-- formula/                # formula-level unit tests (whitepaper-aligned)
 |   `-- e2e/                    # determinism tests (same input -> same output)
 |-- migrations/                 # Alembic for output tables + run audit
+|   `-- versions/               # migration scripts
 |-- config/
 |   |-- app.yaml                # single source of config (not tracked by git)
 |   `-- app.yaml.template       # template config (submit to git repo)
+|-- scripts/                    # local utilities (read/write smoke scripts)
 `-- pyproject.toml              # uv-managed environment
 ```
 
