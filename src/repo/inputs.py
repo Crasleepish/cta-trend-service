@@ -24,6 +24,8 @@ class BucketRow(TypedDict):
     id: int
     bucket_name: str
     assets: str
+    bucket_proxy: str | None
+    bucket_proxy_name: str | None
 
 
 class IndexOhlcRow(TypedDict):
@@ -84,6 +86,8 @@ def _bucket_table(schema: str | None) -> Table:
         Column("id", BigInteger, primary_key=True),
         Column("bucket_name", String(64), nullable=False),
         Column("assets", Text, nullable=False),
+        Column("bucket_proxy", String(64), nullable=True),
+        Column("bucket_proxy_name", String(128), nullable=True),
     )
 
 

@@ -23,6 +23,8 @@ def _setup_tables(engine) -> None:
         Column("id", BigInteger, primary_key=True, autoincrement=True),
         Column("bucket_name", String(64), nullable=False),
         Column("assets", String(256), nullable=False),
+        Column("bucket_proxy", String(64), nullable=False),
+        Column("bucket_proxy_name", String(128)),
     )
     Table(
         "index_hist",
@@ -77,7 +79,15 @@ def test_input_repos_get_range(pg_engine) -> None:
     with pg_engine.begin() as conn:
         conn.execute(
             Table("bucket", MetaData(schema="cta"), autoload_with=pg_engine).insert(),
-            [{"id": 1, "bucket_name": "GROWTH", "assets": "F1,F2"}],
+            [
+                {
+                    "id": 1,
+                    "bucket_name": "GROWTH",
+                    "assets": "F1,F2",
+                    "bucket_proxy": "IDX_GROWTH",
+                    "bucket_proxy_name": "Growth Index",
+                }
+            ],
         )
         conn.execute(
             Table("index_hist", MetaData(), autoload_with=pg_engine).insert(),
