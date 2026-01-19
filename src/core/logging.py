@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import gzip
+import json
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
@@ -85,13 +86,59 @@ def setup_logging(config: LoggingConfig) -> None:
     cleanup_old_logs(log_dir, config.prefix, config.retention_days)
 
     log_paths = LogPaths(log_dir=log_dir, prefix=config.prefix)
-    handler = DailyRotatingFileHandler(log_paths)
-    formatter = logging.Formatter(
-        fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    handler.setFormatter(formatter)
+    file_handler = DailyRotatingFileHandler(log_paths)
+    formatter = _StructuredFormatter()
+    file_handler.setFormatter(formatter)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
 
     root_logger = logging.getLogger()
     root_logger.setLevel(config.level)
-    root_logger.addHandler(handler)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+
+
+class _StructuredFormatter(logging.Formatter):
+    def __init__(self) -> None:
+        super().__init__(datefmt="%Y-%m-%d %H:%M:%S")
+
+    def format(self, record: logging.LogRecord) -> str:
+        created = self.formatTime(record, self.datefmt)
+        message = record.getMessage()
+        extra = _extract_extra(record)
+        extra_json = json.dumps(extra, separators=(",", ":")) if extra else "{}"
+        return f"{created} | {record.levelname} | {record.name} | {message} | extra={extra_json}"
+
+
+def _extract_extra(record: logging.LogRecord) -> dict[str, object]:
+    standard = {
+        "args",
+        "asctime",
+        "created",
+        "exc_info",
+        "exc_text",
+        "filename",
+        "funcName",
+        "levelname",
+        "levelno",
+        "lineno",
+        "module",
+        "msecs",
+        "message",
+        "msg",
+        "name",
+        "pathname",
+        "process",
+        "processName",
+        "relativeCreated",
+        "stack_info",
+        "thread",
+        "threadName",
+    }
+    extras: dict[str, object] = {}
+    for key, value in record.__dict__.items():
+        if key in standard:
+            continue
+        extras[key] = value
+    return extras

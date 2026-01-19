@@ -12,6 +12,7 @@ dependencies = [
   "ruff>=0.6.0",
   "mypy>=1.10",
   "pytest>=8.0",
+  "alembic>=1.13",
   "types-PyYAML>=6.0",
   "SQLAlchemy>=2.0",
   "uvicorn>=0.29",

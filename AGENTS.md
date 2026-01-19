@@ -84,7 +84,8 @@ All behavior must be callable and testable.
 |   |-- core/
 |   |   |-- config.py           # config/app.yaml loading
 |   |   |-- logging.py          # daily rotate + gzip + retention cleanup
-|   |   `-- db.py               # engine/session setup
+|   |   |-- db.py               # engine/session setup
+|   |   `-- schema.py           # SQLAlchemy Core table metadata
 |   |-- repo/                   # DB read/write (no business logic)
 |   |-- services/               # Feature/Signal/Portfolio/Run orchestration
 |   `-- cli.py                  # optional CLI runner (sync execution)
