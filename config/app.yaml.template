@@ -1,0 +1,12 @@
+env: dev
+
+db:
+  dsn: "postgresql+psycopg://user:pass@localhost:5432/cta"
+  schema_in: "public"
+  schema_out: "cta"
+
+logging:
+  dir: "./logs"
+  level: "INFO"
+  retention_days: 365
+  prefix: "app"

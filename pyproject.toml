@@ -1,0 +1,21 @@
+[project]
+name = "cta-trend-service"
+version = "0.1.0"
+description = "CTA trend-following allocation microservice"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.110",
+  "psycopg[binary]>=3.1",
+  "psycopg2-binary>=2.9",
+  "pydantic>=2.6",
+  "PyYAML>=6.0",
+  "ruff>=0.6.0",
+  "mypy>=1.10",
+  "pytest>=8.0",
+  "types-PyYAML>=6.0",
+  "SQLAlchemy>=2.0",
+  "uvicorn>=0.29",
+]
+
+[project.scripts]
+cta-trend-service = "src.main:run"

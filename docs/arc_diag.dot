@@ -1,0 +1,151 @@
+digraph CTS_Architecture {
+  rankdir=LR;
+  splines=ortho;
+  nodesep=0.35;
+  ranksep=0.55;
+  fontname="Helvetica";
+  node [shape=box, style="rounded", fontname="Helvetica"];
+  edge [fontname="Helvetica"];
+
+  // Whitepaper reference: :contentReference[oaicite:0]{index=0}
+
+  // ===== Left: Inputs (as in your figure) =====
+  bucket_config   [label="资产bucket（人工设置）"];
+  fund_nav        [label="基金净值曲线\n（仅bucket内资产）"];
+  index_ohlc      [label="指数OHCL数据：\n创业板指数/中证红利/A股资源/中证10债/黄金9999"];
+  factor_returns  [label="因子每日收益率数据：\nMKT/SMB/HML/QMJ"];
+  aux_data        [label="补充数据：黄金CLTC/美元指数"];
+
+  // ===== Right: Output (as in your figure) =====
+  portfolio_weights [label="组合权重"];
+
+  // ===== Middle: Service (fill the blank) =====
+  subgraph cluster_service {
+    label="CTS（CTA Trend Service）- FastAPI + PostgreSQL（V1 极简）";
+    labelloc="t";
+    fontsize=14;
+    style="rounded";
+    color="#444444";
+
+    // --- Config & Entry ---
+    app_yaml   [label="AppConfig\n(app.yaml)"];
+    api_layer  [label="API Layer\n(FastAPI Routes)"];
+    cli_runner [label="CLI Runner\n(optional)"];
+    job_runner [label="JobRunner\n(同步执行：FULL/FEATURE/PORTFOLIO)"];
+
+    // --- Local logging & audit ---
+    local_logger [label="Local Logger\n(日滚动 + gzip + 365天保留)"];
+    run_audit    [label="RunAuditService\n(run_id / 输入范围 / 输出摘要 / 错误栈)"];
+
+    // --- Repository layer (DB access) ---
+    subgraph cluster_repo {
+      label="Repository Layer (DB 读写)";
+      style="rounded";
+      color="#777777";
+
+      bucket_repo [label="BucketRepo\n(读：bucket配置/资产映射)"];
+      nav_repo    [label="NavRepo\n(读：基金NAV曲线)"];
+      market_repo [label="MarketRepo\n(读：指数/代理价格OHLC)"];
+      factor_repo [label="FactorRepo\n(读：因子日收益)"];
+      aux_repo    [label="AuxRepo\n(读：补充序列)"];
+
+      feature_repo [label="FeatureRepo\n(写：feature_daily)"];
+      signal_repo  [label="SignalRepo\n(写：signal_weekly)"];
+      weight_repo  [label="WeightRepo\n(写：portfolio_weight_weekly)"];
+      run_repo     [label="RunRepo\n(写：job_run)"];
+    }
+
+    // --- Domain services (no formula details here) ---
+    subgraph cluster_domain {
+      label="Domain Layer (计算编排)";
+      style="rounded";
+      color="#777777";
+
+      feature_service [label="FeatureService\n(日频计算 + 周频采样)\n(仅编排；公式见白皮书)"];
+      signal_service  [label="SignalService\n(周频信号/倾斜输入准备)\n(仅编排；细节见白皮书)"];
+      portfolio_service [label="PortfolioService\n(风险预算/防御分配/权重输出)\n(仅编排；细节见白皮书)"];
+      persist_service [label="PersistOutputs\n(upsert + 幂等覆盖)"];
+    }
+
+    // --- Algorithm tests (formula validation) ---
+    subgraph cluster_tests {
+      label="Algorithm Tests (公式一致性校验)";
+      style="rounded,dashed";
+      color="#999999";
+
+      formula_tests [label="Formula Test Suite\n(小样本输入→期望输出)\n(对齐白皮书定义)"];
+      e2e_tests     [label="Determinism E2E\n(同输入同snapshot→输出hash一致)"];
+    }
+
+    // --- Whitepaper spec node (references only) ---
+    wp_spec [label="Whitepaper Specs\n(权威定义/口径/时序契约)\n[WP §4/§6/§7/§8/§9/§10/§11.1]",
+             style="rounded,dashed"];
+
+    // Entry wiring
+    app_yaml -> api_layer;
+    app_yaml -> cli_runner;
+    api_layer -> job_runner;
+    cli_runner -> job_runner;
+
+    // JobRunner orchestration
+    job_runner -> run_audit;
+    job_runner -> local_logger;
+
+    job_runner -> feature_service;
+    job_runner -> signal_service;
+    job_runner -> portfolio_service;
+
+    // Domain → Persist
+    feature_service -> persist_service;
+    signal_service  -> persist_service;
+    portfolio_service -> persist_service;
+
+    // Persist → repos (writes)
+    persist_service -> feature_repo;
+    persist_service -> signal_repo;
+    persist_service -> weight_repo;
+    persist_service -> run_repo;
+
+    // Audit → repo
+    run_audit -> run_repo;
+
+    // Domain uses repos (reads)
+    feature_service -> bucket_repo;
+    feature_service -> market_repo;
+    feature_service -> nav_repo;
+    feature_service -> factor_repo;
+    feature_service -> aux_repo;
+
+    signal_service -> bucket_repo;
+    signal_service -> factor_repo;
+    signal_service -> feature_repo;
+
+    portfolio_service -> bucket_repo;
+    portfolio_service -> signal_repo;
+    portfolio_service -> feature_repo;
+    portfolio_service -> market_repo;
+    portfolio_service -> aux_repo;
+
+    // Whitepaper references (no computation details here)
+    wp_spec -> feature_service   [style=dashed];
+    wp_spec -> signal_service    [style=dashed];
+    wp_spec -> portfolio_service [style=dashed];
+    wp_spec -> formula_tests     [style=dashed];
+    wp_spec -> e2e_tests         [style=dashed];
+
+    // Tests relation (offline)
+    formula_tests -> feature_service   [style=dashed];
+    formula_tests -> portfolio_service [style=dashed];
+    e2e_tests -> job_runner            [style=dashed];
+  }
+
+  // ===== Wire left inputs into service (via repos/runner) =====
+  bucket_config  -> bucket_repo;
+  fund_nav       -> nav_repo;
+  index_ohlc     -> market_repo;
+  factor_returns -> factor_repo;
+  aux_data       -> aux_repo;
+
+  // ===== Wire output =====
+  weight_repo -> portfolio_weights;
+}

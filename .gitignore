@@ -1,0 +1,16 @@
+.DS_Store
+__pycache__/
+*.pyc
+
+.venv/
+.python-version
+
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+logs/
+config/app.yaml
+
+.env
+.env.*
