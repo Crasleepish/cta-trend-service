@@ -20,9 +20,7 @@ class BaseRepo:
             result = connection.execute(stmt)
             return int(result.rowcount or 0)
 
-    def _execute_many(
-        self, stmt: Executable, rows: Sequence[Mapping[str, object]]
-    ) -> int:
+    def _execute_many(self, stmt: Executable, rows: Sequence[Mapping[str, object]]) -> int:
         if not rows:
             return 0
         with self._engine.begin() as connection:

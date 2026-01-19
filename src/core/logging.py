@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 import gzip
 import json
 import logging
+import re
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-import re
+
 from .config import LoggingConfig
 
 
@@ -64,9 +65,7 @@ class DailyRotatingFileHandler(TimedRotatingFileHandler):
 def cleanup_old_logs(log_dir: Path, prefix: str, retention_days: int) -> None:
     if retention_days <= 0:
         return
-    date_re = re.compile(
-        rf"^{re.escape(prefix)}_(\d{{4}}-\d{{2}}-\d{{2}})\.log(?:\.gz)?$"
-    )
+    date_re = re.compile(rf"^{re.escape(prefix)}_(\d{{4}}-\d{{2}}-\d{{2}})\.log(?:\.gz)?$")
     cutoff = datetime.now().date() - timedelta(days=retention_days)
     for path in log_dir.iterdir():
         match = date_re.match(path.name)

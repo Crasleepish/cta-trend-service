@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI
 import uvicorn
+from fastapi import FastAPI
 
 from .api.health import router as health_router
 from .core.config import load_app_config

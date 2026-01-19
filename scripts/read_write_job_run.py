@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime
 import json
 import uuid
+from datetime import date, datetime
 
 from src.core.config import load_app_config
 from src.core.db import create_engine_from_config
@@ -21,9 +21,7 @@ def _build_run_id(now: datetime) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Read a slice of data and write one job_run."
-    )
+    parser = argparse.ArgumentParser(description="Read a slice of data and write one job_run.")
     parser.add_argument("--start-date", required=True, help="YYYY-MM-DD")
     parser.add_argument("--end-date", required=True, help="YYYY-MM-DD")
     parser.add_argument("--rebalance-date", required=True, help="YYYY-MM-DD")

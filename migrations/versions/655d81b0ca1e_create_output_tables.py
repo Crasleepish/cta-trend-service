@@ -8,8 +8,8 @@ Create Date: 2026-01-19 16:53:25.259117
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -91,9 +91,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=16), nullable=False),
         sa.Column("time_start", sa.DateTime(), nullable=False),
         sa.Column("time_end", sa.DateTime(), nullable=True),
-        sa.Column(
-            "input_range_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
+        sa.Column("input_range_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column(
             "output_summary_json",
             postgresql.JSONB(astext_type=sa.Text()),

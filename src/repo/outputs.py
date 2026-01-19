@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Mapping, Sequence, TypedDict
 
-from sqlalchemy import Column, Date, DateTime, Float, MetaData, String, Table, Text
+from sqlalchemy import Column, Date, DateTime, Float, MetaData, String, Table, Text, update
 from sqlalchemy.dialects.postgresql import JSONB, insert
-from sqlalchemy import update
 from sqlalchemy.engine import Engine
+from sqlalchemy.sql import Insert
 
 from .base import BaseRepo
 
@@ -121,13 +121,14 @@ def _job_run_table(schema: str | None) -> Table:
     )
 
 
-def _upsert_statement(table: Table, rows: Sequence[Mapping[str, object]]):
+def _upsert_statement(
+    table: Table,
+    rows: Sequence[Mapping[str, object]],
+) -> Insert:
     stmt = insert(table).values(rows)
     pk_cols = [col.name for col in table.primary_key.columns]
     update_cols = {
-        col.name: stmt.excluded[col.name]
-        for col in table.columns
-        if col.name not in pk_cols
+        col.name: stmt.excluded[col.name] for col in table.columns if col.name not in pk_cols
     }
     return stmt.on_conflict_do_update(index_elements=pk_cols, set_=update_cols)
 
@@ -174,7 +175,5 @@ class RunRepo(BaseRepo):
     def update_fields(self, run_id: str, fields: Mapping[str, object]) -> int:
         if not fields:
             return 0
-        stmt = (
-            update(self._table).where(self._table.c.run_id == run_id).values(**fields)
-        )
+        stmt = update(self._table).where(self._table.c.run_id == run_id).values(**fields)
         return self._execute(stmt)

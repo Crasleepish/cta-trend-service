@@ -5,8 +5,7 @@ from unittest.mock import MagicMock
 
 from sqlalchemy.dialects import postgresql
 
-from src.repo.outputs import JobRunRow, RunRepo, WeightRepo, _upsert_statement
-from src.repo.outputs import _feature_table
+from src.repo.outputs import JobRunRow, RunRepo, WeightRepo, _feature_table, _upsert_statement
 
 
 def test_upsert_statement_contains_on_conflict() -> None:

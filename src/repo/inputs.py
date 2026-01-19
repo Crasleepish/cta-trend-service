@@ -16,6 +16,7 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.engine import Engine
+
 from .base import BaseRepo
 
 
@@ -191,9 +192,7 @@ class FactorRepo(BaseRepo):
         end_date: date,
         order_by_date: bool = True,
     ) -> list[FactorRow]:
-        stmt = select(self._table).where(
-            self._table.c.date.between(start_date, end_date)
-        )
+        stmt = select(self._table).where(self._table.c.date.between(start_date, end_date))
         if order_by_date:
             stmt = stmt.order_by(self._table.c.date.asc())
         return cast(list[FactorRow], self._fetch_all(stmt))
