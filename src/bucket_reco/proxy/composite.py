@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Literal, Mapping
+from typing import Literal, Mapping, cast
 
 import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 
 from src.utils.series import align_series, build_index_from_returns, log_return
 
@@ -14,37 +15,51 @@ def compute_vol_annualized(returns: pd.Series, *, annualize: int = 252) -> float
     return float(returns.std(ddof=0) * np.sqrt(annualize))
 
 
-def compute_weights_equal(n: int) -> np.ndarray:
+def compute_weights_equal(n: int) -> NDArray[np.float64]:
     if n <= 0:
         raise ValueError("n must be positive")
-    return np.full(n, 1.0 / n)
+    weights = np.full(n, 1.0 / n, dtype=np.float64)
+    return cast(NDArray[np.float64], weights)
 
 
 def compute_weights_inv_vol(
-    sigmas: np.ndarray,
+    sigmas: NDArray[np.float64],
     *,
     clip: tuple[float | None, float | None] | None = None,
-) -> np.ndarray:
+) -> NDArray[np.float64]:
     if sigmas.size == 0:
         raise ValueError("sigmas must be non-empty")
     if np.any(sigmas <= 0):
         raise ValueError("sigmas must be positive")
 
-    inv = 1.0 / sigmas
+    inv = 1.0 / sigmas.astype(np.float64)
     weights = inv / inv.sum()
 
     if clip:
         lower, upper = clip
-        if lower is not None:
-            weights = np.maximum(weights, lower)
-        if upper is not None:
-            weights = np.minimum(weights, upper)
-        total = weights.sum()
-        if total <= 0:
-            raise ValueError("clipped weights sum to zero")
-        weights = weights / total
+        lo = 0.0 if lower is None else float(lower)
+        hi = 1.0 if upper is None else float(upper)
+        if lo < 0 or hi <= 0 or lo >= hi:
+            raise ValueError("invalid clip bounds")
 
-    return weights
+        weights = np.clip(weights, lo, hi)
+        for _ in range(weights.size + 1):
+            total = weights.sum()
+            if np.isclose(total, 1.0):
+                break
+            if total < 1.0:
+                capacity = hi - weights
+                if capacity.sum() <= 0:
+                    raise ValueError("clipped weights cannot be normalized")
+                weights = weights + (1.0 - total) * (capacity / capacity.sum())
+            else:
+                capacity = weights - lo
+                if capacity.sum() <= 0:
+                    raise ValueError("clipped weights cannot be normalized")
+                weights = weights - (total - 1.0) * (capacity / capacity.sum())
+            weights = np.clip(weights, lo, hi)
+
+    return cast(NDArray[np.float64], weights)
 
 
 def build_composite_proxy(
