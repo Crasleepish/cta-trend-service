@@ -12,7 +12,7 @@ You are a senior Python engineer and financial quantitative strategy developer.
 * Inputs are read-only from upstream services; this service writes
   `feature_daily`, `signal_weekly`, `portfolio_weight_weekly`, and `job_run`.
 * No async workers (sync API/CLI execution only).
-* Implementing new features must consult `docs/技术设计文档.doc`.
+* Implementing new features must consult `docs/技术设计文档.md`.
 
 * Tech stack:
 
@@ -86,16 +86,13 @@ All behavior must be callable and testable.
 |   |-- api/                    # HTTP routes
 |   |-- core/                   # config/logging/db/schema
 |   |-- repo/                   # DB access (read/write)
-|   `-- services/               # sync orchestration + audit
+|   |-- services/               # sync orchestration + audit
+|   |-- bucket_reco/            # BucketTradableAssets tool modules
+|   `-- utils/                  # shared pure utilities
 |-- tests/                      # unit/integration tests
 |-- migrations/                 # Alembic migrations
 |-- config/                     # app.yaml + template
 |-- scripts/                    # local utilities
-|-- proxy/                      # proxy index tools
-|-- trend/                      # trend scoring utilities
-|-- score/                      # candidate scoring utilities
-|-- beta/                       # beta filtering/clustering
-|-- report/                     # audit output schemas
 `-- pyproject.toml              # uv-managed environment
 ```
 
