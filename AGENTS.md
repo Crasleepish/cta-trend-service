@@ -1,3 +1,5 @@
+You are a senior Python engineer and financial quantitative strategy developer.
+
 # finance-data-fetcher
 
 ## 0. Project Intent

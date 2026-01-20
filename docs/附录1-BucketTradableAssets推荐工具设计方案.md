@@ -269,13 +269,13 @@ $$
 簇代表为：
 
 $$
-i_c^\*=\arg\max_{i\in C_c} J(i).
+i_c^\star=\arg\max_{i\in C_c} J(i).
 $$
 
 最终主资产集合：
 
 $$
-\mathcal{S}=\{i_1^\*,\dots,i_{n_{\mathrm{eff}}}^\*\}.
+\mathcal{S}=\{i_1^\star,\dots,i_{n_{\mathrm{eff}}}^\star\}.
 $$
 
 ### 3.5 每簇 Top-K 备选池
@@ -306,7 +306,7 @@ $$
 对每个簇 $C_c$：
 - 簇大小 $|C_c|$，是否满足 $m_{\min}$
 - 簇中心 $\mu_c$（或其摘要）
-- 代表基金 $i_c^\*$：$S_{\mathrm{fit}}(i_c^\*)$、$d_c(i_c^\*)$、$J(i_c^\*)$
+- 代表基金 $i_c^\star$：$S_{\mathrm{fit}}(i_c^\star)$、$d_c(i_c^\star)$、$J(i_c^\star)$
 - Top-K 备选池 $\mathcal{B}_c$（含每只基金的 $S_{\mathrm{fit}}$ 与 $d_c$）
 
 ---
@@ -324,7 +324,7 @@ $$
 5. **Beta 鲁棒标准化 + Ward 聚类**：对 $\beta$ 做 MAD 缩放与单位化，Ward 聚类并施加最小簇大小约束确定 $n_{\mathrm{eff}}$。  
 6. **代表与备选池**：每簇选代表
    $$
-   i_c^\*=\arg\max_{i\in C_c}\left(S_{\mathrm{fit}}(i)-\eta\|\hat\beta_i-\mu_c\|_2\right),
+   i_c^\star=\arg\max_{i\in C_c}\left(S_{\mathrm{fit}}(i)-\eta\|\hat\beta_i-\mu_c\|_2\right),
    $$
    并输出每簇 Top-K 备选池 $\mathcal{B}_c$。  
 
