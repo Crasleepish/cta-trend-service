@@ -10,6 +10,7 @@
 * Inputs are read-only from upstream services; this service writes
   `feature_daily`, `signal_weekly`, `portfolio_weight_weekly`, and `job_run`.
 * No async workers (sync API/CLI execution only).
+* Implementing new features must consult `docs/技术设计文档.doc`.
 
 * Tech stack:
 
@@ -80,31 +81,14 @@ All behavior must be callable and testable.
 .
 |-- src/
 |   |-- main.py                 # FastAPI entrypoint
-|   |-- api/                    # HTTP routes (query + job triggers)
-|   |-- core/
-|   |   |-- config.py           # config/app.yaml loading
-|   |   |-- logging.py          # daily rotate + gzip + retention cleanup
-|   |   |-- db.py               # engine/session setup
-|   |   `-- schema.py           # SQLAlchemy Core table metadata
-|   |-- repo/                   # DB read/write (no business logic)
-|   |   |-- base.py              # shared repo helpers (fetch/upsert)
-|   |   |-- inputs.py            # read-only repos (bucket/market/factor/nav/beta/aux)
-|   |   `-- outputs.py           # write repos (feature/signal/weight/run)
-|   |-- services/               # Feature/Signal/Portfolio/Run orchestration
-|   |   |-- contracts.py         # run context/request/result contracts
-|   |   |-- run_audit_service.py # job_run lifecycle tracking
-|   |   `-- job_runner.py        # sync orchestration runner
-|   `-- cli.py                  # optional CLI runner (sync execution)
-|-- tests/
-|   |-- fixtures/               # deterministic test datasets
-|   |-- formula/                # formula-level unit tests (whitepaper-aligned)
-|   `-- e2e/                    # determinism tests (same input -> same output)
-|-- migrations/                 # Alembic for output tables + run audit
-|   `-- versions/               # migration scripts
-|-- config/
-|   |-- app.yaml                # single source of config (not tracked by git)
-|   `-- app.yaml.template       # template config (submit to git repo)
-|-- scripts/                    # local utilities (read/write smoke scripts)
+|   |-- api/                    # HTTP routes
+|   |-- core/                   # config/logging/db/schema
+|   |-- repo/                   # DB access (read/write)
+|   `-- services/               # sync orchestration + audit
+|-- tests/                      # unit/integration tests
+|-- migrations/                 # Alembic migrations
+|-- config/                     # app.yaml + template
+|-- scripts/                    # local utilities
 `-- pyproject.toml              # uv-managed environment
 ```
 
