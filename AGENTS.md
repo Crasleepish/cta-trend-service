@@ -91,6 +91,11 @@ All behavior must be callable and testable.
 |-- migrations/                 # Alembic migrations
 |-- config/                     # app.yaml + template
 |-- scripts/                    # local utilities
+|-- proxy/                      # proxy index tools
+|-- trend/                      # trend scoring utilities
+|-- score/                      # candidate scoring utilities
+|-- beta/                       # beta filtering/clustering
+|-- report/                     # audit output schemas
 `-- pyproject.toml              # uv-managed environment
 ```
 
