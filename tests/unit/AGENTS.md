@@ -9,6 +9,7 @@
 
 ```
 .
+|-- test_beta_clustering.py
 |-- test_beta_ols.py
 |-- test_beta_stability.py
 |-- test_proxy_composite.py
