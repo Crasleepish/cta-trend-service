@@ -12,6 +12,7 @@
 |-- test_beta_ols.py
 |-- test_proxy_composite.py
 |-- test_series_utils.py
+|-- test_step1_score.py
 |-- test_trend_consistency.py
 `-- test_trend_score.py
 ```
