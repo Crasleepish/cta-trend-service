@@ -10,6 +10,7 @@
 ```
 .
 |-- conftest.py
+|-- helpers/
 |-- test_health.py
 |-- test_job_runner.py
 |-- test_repos_inputs.py
@@ -20,6 +21,7 @@
 ## 文件说明
 
 * `conftest.py`：PostgresContainer 测试容器与 Engine fixtures。
+* `helpers/db.py`：测试用 DB 表结构辅助（复用 fund_beta 等表建表逻辑）。
 * `test_health.py`：健康检查基础测试。
 * `test_job_runner.py`：JobRunner 框架流程测试（mock services）。
 * `test_repos_inputs.py`：输入 repos 读取测试（容器内 Postgres）。
@@ -28,5 +30,7 @@
 
 ## 本模块约束/规范
 
-* 使用 `postgres:17` 的 Testcontainers。
+* 测试代码执行时使用 fake/mocked 数据源；可读取真实数据库样例用于填充假库，禁止对真实数据库写入。
+* 真实数据库样例读取需通过 MCP 数据库工具完成，避免直连在测试内执行；开发/设计阶段可访问真实 DB 以理解生产行为。
+* 若使用容器数据库，仅限 Testcontainers 本地实例。
 * 若需要新增测试约束（如性能/数据规模），在此补充。

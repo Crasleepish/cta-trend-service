@@ -143,11 +143,12 @@ No ad-hoc loggers.
 * All tests under `tests/`
 * Files: `test_*.py`
 * Functions: `test_*`
+* Read-only sampling from production DB must use MCP database tools (no direct DB connections in tests).
 
 ### 5.2 Unit Tests
 
-* No real DB
-* No network
+* No real DB/network dependency in test code execution; tests must run with mocks or local containers.
+* During development/design, access to real DB/network is allowed and encouraged for understanding production behavior.
 * No shared external state
 
 ### 5.3 Integration Tests

@@ -12,6 +12,7 @@ from src.repo.inputs import (
     MarketRepo,
     NavRepo,
 )
+from tests.helpers.db import create_fund_beta_table
 
 
 def _setup_tables(engine) -> None:
@@ -56,21 +57,11 @@ def _setup_tables(engine) -> None:
         Column("date", Date, primary_key=True),
         Column("net_value", Float),
     )
-    Table(
-        "fund_beta",
-        metadata_public,
-        Column("code", String(64), primary_key=True),
-        Column("date", Date, primary_key=True),
-        Column("MKT", Float),
-        Column("SMB", Float),
-        Column("HML", Float),
-        Column("QMJ", Float),
-        Column("const", Float),
-    )
     with engine.begin() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS cta"))
     metadata_public.create_all(engine)
     metadata_cta.create_all(engine)
+    create_fund_beta_table(engine, schema="public")
 
 
 def test_input_repos_get_range(pg_engine) -> None:

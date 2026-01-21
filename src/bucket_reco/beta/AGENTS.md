@@ -10,12 +10,14 @@
 ```
 .
 |-- AGENTS.md
-`-- ols.py
+|-- ols.py
+`-- stability.py
 ```
 
 ## 文件说明
 
 * `ols.py`：OLS beta 估计与正向门控。
+* `stability.py`：协方差解码、不稳定度过滤、MAD 缩放、L2 单位化。
 
 ## 本模块约束/规范
 
