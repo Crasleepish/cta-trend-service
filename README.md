@@ -33,3 +33,19 @@ curl http://localhost:8081/health
 
 Logs are written to `./logs/` with daily rotation and gzip archive,
 retained for 365 days.
+
+## bucket_reco
+
+Bucket Tradable Assets recommender tool for a single bucket. It builds a proxy
+index, runs Step1 trend consistency filters, then Step2 beta clustering to
+produce representatives and Top-K candidates. Configuration lives under
+`bucket_reco.*` in `config/app.yaml`, and can be overridden via CLI flags.
+
+Example:
+
+```bash
+uv run python src/bucket_reco/runner.py \
+  --bucket-name GROWTH \
+  --proxy-index 000300.SH,000905.SH,000852.SH \
+  --as-of-date 2025-12-31
+```

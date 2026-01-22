@@ -9,6 +9,7 @@
 
 ```
 .
+|-- runner.py
 |-- proxy/
 |-- trend/
 |-- score/
@@ -18,4 +19,5 @@
 
 ## 本模块约束/规范
 
-* 仅提供可复用的分析工具，不引入服务层或 DB 依赖。
+* `runner.py`：端到端推荐执行入口（读取 fund_beta/fund_hist/index_hist + 编排计算）。
+* runner 允许读取数据库；其它模块保持纯计算工具。
