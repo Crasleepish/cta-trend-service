@@ -13,13 +13,7 @@ import pandas as pd
 from sqlalchemy import Column, Date, Float, MetaData, String, Table, create_engine, select
 from sqlalchemy.engine import Engine
 
-from src.bucket_reco.beta.clustering import (
-    choose_n_eff,
-    cluster_centroids,
-    select_representative,
-    topk_candidates,
-    ward_cluster,
-)
+from src.bucket_reco.beta.convex_hull import select_representatives
 from src.bucket_reco.beta.ols import ols_beta
 from src.bucket_reco.beta.stability import (
     UnstableRule,
@@ -27,7 +21,6 @@ from src.bucket_reco.beta.stability import (
     extract_var_2,
     fetch_beta_rows,
     filter_unstable,
-    l2_normalize,
     robust_scale_mad,
 )
 from src.bucket_reco.proxy.composite import (
@@ -46,6 +39,7 @@ from src.bucket_reco.score.step1 import (
 from src.bucket_reco.trend.consistency import hit_ratio, trend_corr, window_slices
 from src.bucket_reco.trend.trend_score import trend_score
 from src.core.config import AppConfig, BucketRecoConfig, BucketRecoWindowSpec, load_app_config
+from src.core.logging import setup_logging
 from src.utils.series import align_series, log_return
 
 
@@ -65,14 +59,24 @@ def run_bucket_asset_recommender(
     app_config: AppConfig | None = None,
     config: BucketRecoConfig | None = None,
 ) -> BucketRecoResult:
+    logger = logging.getLogger(__name__)
     app_config = app_config or load_app_config()
     cfg = config or app_config.bucket_reco
 
     engine = create_engine(app_config.db.dsn)
     try:
+        logger.info(
+            "bucket_reco start",
+            extra={
+                "bucket": bucket_name,
+                "proxy_index": list(list_of_proxy_index),
+                "as_of_date": as_of_date.isoformat(),
+            },
+        )
         assets = _fetch_universe_codes(engine, app_config.db.schema_in, as_of_date)
         if not assets:
             raise ValueError("no fund universe found for as_of_date")
+        logger.info("fund universe loaded", extra={"count": len(assets)})
 
         max_months = max(spec.months for spec in cfg.consistency.windows)
         start_date = (pd.Timestamp(as_of_date) - pd.DateOffset(months=max_months)).date()
@@ -81,6 +85,14 @@ def run_bucket_asset_recommender(
             engine, app_config.db.schema_in, list_of_proxy_index, start_date, as_of_date
         )
         proxy_returns, proxy_index, proxy_weights = _build_proxy(cfg, proxy_prices)
+        logger.info(
+            "proxy built",
+            extra={
+                "start_date": proxy_index.index.min().date().isoformat(),
+                "end_date": proxy_index.index.max().date().isoformat(),
+                "weights": proxy_weights,
+            },
+        )
         T_G = trend_score(
             proxy_index,
             cfg.trend.short_window,
@@ -109,6 +121,15 @@ def run_bucket_asset_recommender(
             min_count=cfg.score.min_count,
         )
         candidates = _select_step1_candidates(fund_universe, s_fit_scores, constraints)
+        logger.info(
+            "step1 complete",
+            extra={
+                "universe": len(fund_universe),
+                "candidates": len(candidates),
+                "score_threshold": cfg.score.score_threshold,
+                "min_count": cfg.score.min_count,
+            },
+        )
 
         step2 = _compute_step2(
             engine,
@@ -117,6 +138,13 @@ def run_bucket_asset_recommender(
             as_of_date,
             s_fit_scores,
             cfg,
+        )
+        logger.info(
+            "step2 complete",
+            extra={
+                "selected": len(step2.get("selected", [])),
+                "filtered": len(step2.get("filtered", [])),
+            },
         )
 
         proxy_info = {
@@ -129,7 +157,7 @@ def run_bucket_asset_recommender(
             proxy=proxy_info,
             step1={"candidates": candidates, "details": step1_details},
             step2=step2,
-            recommendations=step2["representatives"],
+            recommendations=step2["selected"],
         )
     finally:
         engine.dispose()
@@ -257,6 +285,7 @@ def _compute_step1(
     windows: Mapping[str, pd.DatetimeIndex],
     cfg: BucketRecoConfig,
 ) -> tuple[list[dict[str, Any]], dict[str, WindowScore]]:
+    logger = logging.getLogger(__name__)
     details: list[dict[str, Any]] = []
     scores: dict[str, WindowScore] = {}
 
@@ -305,6 +334,18 @@ def _compute_step1(
         details.append(
             {"fund": fund, "windows": window_detail, "S_fit": agg.score, "valid": agg.valid}
         )
+    if logger.isEnabledFor(logging.DEBUG):
+        valid_scores = [
+            (fund, ws.score) for fund, ws in scores.items() if ws.valid and np.isfinite(ws.score)
+        ]
+        valid_scores.sort(key=lambda x: x[1], reverse=True)
+        logger.debug(
+            "step1 score distribution",
+            extra={
+                "valid": len(valid_scores),
+                "top": valid_scores[:10],
+            },
+        )
     return details, scores
 
 
@@ -343,21 +384,30 @@ def _compute_step2(
     s_fit_scores: Mapping[str, WindowScore],
     cfg: BucketRecoConfig,
 ) -> dict[str, Any]:
+    logger = logging.getLogger(__name__)
     if not candidates:
-        return {"clusters": [], "representatives": [], "topk": {}, "filtered": []}
+        return {"selected": [], "representatives": [], "details": [], "filtered": []}
 
     rows = fetch_beta_rows(candidates, as_of_date, engine=engine, schema=schema)
     if rows.empty:
-        return {"clusters": [], "representatives": [], "topk": {}, "filtered": list(candidates)}
+        return {
+            "selected": [],
+            "representatives": [],
+            "details": [],
+            "filtered": list(candidates),
+        }
 
     beta_points = []
     U_values = {}
     filtered = []
+    missing_pbin = 0
+    decode_errors = 0
     for _, row in rows.iterrows():
         code = str(row["code"])
         p_bin = row.get("P_bin")
         if p_bin is None:
             filtered.append(code)
+            missing_pbin += 1
             continue
         try:
             cov = decode_cov(p_bin, strict=cfg.beta.strict_decode)
@@ -365,65 +415,93 @@ def _compute_step2(
             U_values[code] = float((np.sqrt(var_smb) + np.sqrt(var_qmj)) / 2.0)
         except ValueError:
             filtered.append(code)
+            decode_errors += 1
             continue
         beta_points.append({"code": code, "SMB": row["SMB"], "QMJ": row["QMJ"]})
 
     if not beta_points:
-        return {"clusters": [], "representatives": [], "topk": {}, "filtered": filtered}
+        return {"selected": [], "representatives": [], "details": [], "filtered": filtered}
 
     beta_df = pd.DataFrame(beta_points).set_index("code")
     U = pd.Series(U_values)
     stable_idx = filter_unstable(U, UnstableRule(cfg.beta.u_mode, cfg.beta.u_value))
     unstable = set(U.index) - set(stable_idx)
     filtered.extend(sorted(unstable))
+    logger.info(
+        "beta stability filter",
+        extra={
+            "rows": len(rows),
+            "usable": len(beta_df),
+            "missing_pbin": missing_pbin,
+            "decode_errors": decode_errors,
+            "unstable": len(unstable),
+        },
+    )
     beta_df = beta_df.loc[beta_df.index.intersection(stable_idx)]
 
     if beta_df.empty:
-        return {"clusters": [], "representatives": [], "topk": {}, "filtered": filtered}
+        return {"selected": [], "representatives": [], "details": [], "filtered": filtered}
 
-    scaled, _ = robust_scale_mad(beta_df, eps=cfg.beta.mad_eps)
-    beta_hat = l2_normalize(scaled, eps=cfg.beta.normalize_eps)
+    scaled, scales = robust_scale_mad(beta_df, eps=cfg.beta.mad_eps)
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("beta scales", extra={"scales": {k: float(v) for k, v in scales.items()}})
+    points = scaled
+    target_n = min(cfg.convex_hull.n, len(points))
+    if target_n <= 0:
+        return {"selected": [], "representatives": [], "details": [], "filtered": filtered}
 
-    n_clusters = min(cfg.cluster.n_clusters, len(beta_hat))
-    labels = None
-    while n_clusters >= 1:
-        candidate_labels = ward_cluster(beta_hat, n_clusters)
-        if choose_n_eff(candidate_labels, cfg.cluster.m_min) == n_clusters:
-            labels = candidate_labels
-            break
-        n_clusters -= 1
-    if labels is None:
-        return {"clusters": [], "representatives": [], "topk": {}, "filtered": filtered}
+    init_size = min(2, len(points))
+    max_iters = cfg.convex_hull.max_iters
+    if max_iters is None:
+        max_iters = max(target_n - init_size, 0)
 
-    centroids = cluster_centroids(beta_hat, labels)
-    clusters_out: list[dict[str, Any]] = []
-    representatives: list[str] = []
-    topk_map: dict[str, list[str]] = {}
+    selected_idx = select_representatives(
+        points.to_numpy(),
+        cfg.convex_hull.epsilon,
+        M=cfg.convex_hull.M,
+        rng_seed=cfg.convex_hull.rng_seed,
+        topk_per_iter=cfg.convex_hull.topk_per_iter,
+        violation_tol=cfg.convex_hull.violation_tol,
+        max_iters=max_iters,
+        clip_rhopow=cfg.convex_hull.clip_rhopow,
+        clip_viol=cfg.convex_hull.clip_viol,
+        diversity_beta=cfg.convex_hull.diversity_beta,
+        nms_cos_thresh=cfg.convex_hull.nms_cos_thresh,
+        labels=[str(code) for code in points.index],
+        logger=logger if logger.isEnabledFor(logging.DEBUG) else None,
+        debug=logger.isEnabledFor(logging.DEBUG),
+    )
 
-    for cluster_id, members in labels.groupby(labels):
-        member_idx = members.index
-        cluster_beta = beta_hat.loc[member_idx]
-        scores = pd.Series({code: s_fit_scores[code].score for code in member_idx})
-        centroid = centroids.loc[cluster_id].to_numpy()
-        rep = select_representative(cluster_beta, scores, centroid, cfg.cluster.eta)
-        reps = topk_candidates(member_idx, scores, cfg.cluster.top_k)
-        representatives.append(rep)
-        topk_map[str(cluster_id)] = reps
-        clusters_out.append(
+    selected_codes = [str(points.index[i]) for i in selected_idx][:target_n]
+    logger.info(
+        "convex_hull selected",
+        extra={
+            "selected": selected_codes,
+            "target_n": target_n,
+        },
+    )
+    details: list[dict[str, Any]] = []
+    for code in points.index:
+        score = s_fit_scores.get(code)
+        details.append(
             {
-                "cluster": int(cluster_id),
-                "members": [str(code) for code in member_idx],
-                "centroid": centroid.tolist(),
-                "representative": rep,
-                "topk": reps,
+                "fund": str(code),
+                "SMB": float(beta_df.loc[code, "SMB"]),
+                "QMJ": float(beta_df.loc[code, "QMJ"]),
+                "p_SMB": float(points.loc[code, "SMB"]),
+                "p_QMJ": float(points.loc[code, "QMJ"]),
+                "S_fit": None if score is None else float(score.score),
+                "U": float(U.get(code, np.nan)),
+                "selected": str(code) in selected_codes,
             }
         )
 
     return {
-        "clusters": clusters_out,
-        "representatives": representatives,
-        "topk": topk_map,
+        "selected": selected_codes,
+        "representatives": selected_codes,
+        "details": details,
         "filtered": filtered,
+        "scales": {k: float(v) for k, v in scales.items()},
     }
 
 
@@ -472,14 +550,28 @@ def _apply_overrides(cfg: BucketRecoConfig, args: argparse.Namespace) -> BucketR
         updated.score.top_k = args.score_top_k
     if args.score_min_count is not None:
         updated.score.min_count = args.score_min_count
-    if args.cluster_n is not None:
-        updated.cluster.n_clusters = args.cluster_n
-    if args.cluster_m_min is not None:
-        updated.cluster.m_min = args.cluster_m_min
-    if args.cluster_eta is not None:
-        updated.cluster.eta = args.cluster_eta
-    if args.cluster_top_k is not None:
-        updated.cluster.top_k = args.cluster_top_k
+    if args.hull_n is not None:
+        updated.convex_hull.n = args.hull_n
+    if args.hull_epsilon is not None:
+        updated.convex_hull.epsilon = args.hull_epsilon
+    if args.hull_M is not None:
+        updated.convex_hull.M = args.hull_M
+    if args.hull_rng_seed is not None:
+        updated.convex_hull.rng_seed = args.hull_rng_seed
+    if args.hull_topk_per_iter is not None:
+        updated.convex_hull.topk_per_iter = args.hull_topk_per_iter
+    if args.hull_violation_tol is not None:
+        updated.convex_hull.violation_tol = args.hull_violation_tol
+    if args.hull_max_iters is not None:
+        updated.convex_hull.max_iters = args.hull_max_iters
+    if args.hull_clip_rhopow is not None:
+        updated.convex_hull.clip_rhopow = args.hull_clip_rhopow
+    if args.hull_clip_viol is not None:
+        updated.convex_hull.clip_viol = args.hull_clip_viol
+    if args.hull_diversity_beta is not None:
+        updated.convex_hull.diversity_beta = args.hull_diversity_beta
+    if args.hull_nms_cos is not None:
+        updated.convex_hull.nms_cos_thresh = args.hull_nms_cos
     return updated
 
 
@@ -504,10 +596,17 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--score-threshold", type=float)
     parser.add_argument("--score-top-k", type=int)
     parser.add_argument("--score-min-count", type=int)
-    parser.add_argument("--cluster-n", type=int)
-    parser.add_argument("--cluster-m-min", type=int)
-    parser.add_argument("--cluster-eta", type=float)
-    parser.add_argument("--cluster-top-k", type=int)
+    parser.add_argument("--hull-n", type=int)
+    parser.add_argument("--hull-epsilon", type=float)
+    parser.add_argument("--hull-M", type=int)
+    parser.add_argument("--hull-rng-seed", type=int)
+    parser.add_argument("--hull-topk-per-iter", type=int)
+    parser.add_argument("--hull-violation-tol", type=float)
+    parser.add_argument("--hull-max-iters", type=int)
+    parser.add_argument("--hull-clip-rhopow", type=float)
+    parser.add_argument("--hull-clip-viol", type=float)
+    parser.add_argument("--hull-diversity-beta", type=float)
+    parser.add_argument("--hull-nms-cos", type=float)
     return parser.parse_args(argv)
 
 
@@ -515,6 +614,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
     config_path = Path(args.config) if args.config else None
     app_config = load_app_config(config_path)
+    setup_logging(app_config.logging)
     cfg = _apply_overrides(app_config.bucket_reco, args)
     result = run_bucket_asset_recommender(
         args.bucket_name,
@@ -523,8 +623,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         app_config=app_config,
         config=cfg,
     )
-    logging.getLogger(__name__).info("bucket reco result", extra={"result": result})
-    print(json.dumps(result, ensure_ascii=False, default=str))
+    logger = logging.getLogger(__name__)
+    logger.info(
+        "bucket reco result",
+        extra={"recommendations": result.recommendations},
+    )
+    logger.debug("bucket reco result details", extra={"result": result})
 
 
 if __name__ == "__main__":

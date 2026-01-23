@@ -166,7 +166,7 @@ $$
 
 ---
 
-## 3. Step 2：Beta 空间去同质化（Ward 聚类 + 代表选择 + Top-K 备选池）
+## 3. Step 2：Beta 空间去同质化
 
 本层在候选集 $F$ 上进行，回答：如何从趋势一致的候选中挑出风格差异足够的一组资产，并给出替补池？
 
@@ -239,13 +239,18 @@ $$
 
 ---
 
-### 3.2 Beta 鲁棒标准化 + 单位化（在 SMB/QMJ 二维空间）
+### 3.2 Beta 鲁棒标准化（SMB/QMJ 二维点集）
 
-在稳定集合 $F'$ 上，对二维暴露向量 $\beta_i^{(2)}$ 做鲁棒标准化与单位化，用于后续 Ward 层次聚类与中心距离计算。
+在通过 Step 1 的趋势一致性筛选与 Kalman 协方差不稳定度过滤后，得到候选集合 $F'$。对每只基金 $i\in F'$，在锚定日期 $t_0$ 取二维因子暴露向量：
 
-#### (a) 横截面鲁棒尺度（MAD）
+$$
+\beta_i^{(2)}=
+\bigl(\beta_{i,\mathrm{SMB}}(t_i^*),\ \beta_{i,\mathrm{QMJ}}(t_i^*)\bigr)\in\mathbb{R}^2,
+\qquad
+t_i^*=\max\{t\le t_0:\ \beta_i(t)\ \text{存在}\}.
+$$
 
-对每个维度 $j\in\{\mathrm{SMB},\mathrm{QMJ}\}$，在 $F'$ 的横截面上计算 MAD 尺度：
+为消除 SMB/QMJ 两个维度在横截面上的尺度差异，仅做鲁棒标准化（不做单位化）。对每个维度 $j\in\{\mathrm{SMB},\mathrm{QMJ}\}$，计算 MAD 尺度：
 
 $$
 a_j=\mathrm{MAD}(\{\beta_{i,j}^{(2)}\}_{i\in F'})+\varepsilon,
@@ -253,102 +258,75 @@ a_j=\mathrm{MAD}(\{\beta_{i,j}^{(2)}\}_{i\in F'})+\varepsilon,
 \mathrm{MAD}(x)=\mathrm{median}\bigl(|x-\mathrm{median}(x)|\bigr).
 $$
 
-构造对角缩放矩阵：
+构造对角缩放矩阵 $D=\mathrm{diag}(a_{\mathrm{SMB}},a_{\mathrm{QMJ}})$，并将每只基金映射为二维点：
 
 $$
-D=\mathrm{diag}(a_{\mathrm{SMB}},a_{\mathrm{QMJ}}).
+p_i=D^{-1}\beta_i^{(2)}\in\mathbb{R}^2.
 $$
 
-#### (b) 对角缩放
+> 注：不进行单位化是为了保留向量模长信息（暴露强度），并避免在某个维度接近 0 时因归一化导致方向不稳定跳变。
+
+---
+
+### 3.3 Step 2 目标：最大化所选点集的凸包面积（风格覆盖）
+
+在二维点集 $\{p_i\}_{i\in F'}$ 上选择 $n$ 只基金，记所选集合为 $\mathcal{S}\subseteq F'$，$|\mathcal{S}|=n$。为保证 bucket 内风格覆盖，将 Step 2 的去同质化目标定义为最大化所选点集围成的凸包面积：
 
 $$
-\tilde\beta_i=D^{-1}\beta_i^{(2)}.
+\max_{\mathcal{S}\subseteq F',\ |\mathcal{S}|=n}\ A\bigl(\mathrm{Hull}(\{p_i\}_{i\in\mathcal{S}})\bigr),
 $$
 
-#### (c) L2 单位化（用于“角度/方向”比较）
+其中 $\mathrm{Hull}(\cdot)$ 表示凸包算子，$A(\cdot)$ 表示二维多边形面积。
+
+直觉含义：
+- 若所选点过于集中（同质化），凸包面积接近 0；
+- 若所选点分布在不同方向/象限（风格覆盖更广），凸包面积更大；
+- 落在点云内部或近中心的点通常对凸包面积贡献较小，因此不会被优先选中。
+
+---
+
+### 3.4 贪心近似求解（面积增量最大）
+
+由于精确求解上述组合优化问题代价较高，采用可解释、可审计的贪心近似算法。
+
+定义对任意当前集合 $\mathcal{S}$ 的凸包面积为：
 
 $$
-\hat\beta_i=\frac{\tilde\beta_i}{\|\tilde\beta_i\|_2+\varepsilon}.
+A(\mathcal{S}) = A\bigl(\mathrm{Hull}(\{p_i\}_{i\in\mathcal{S}})\bigr).
 $$
 
-得到 $\hat\beta_i\in\mathbb{R}^2$ 后，使用欧氏距离
+定义将候选 $x\in F'\setminus \mathcal{S}$ 加入后的面积增量：
 
 $$
-d(i,j)=\|\hat\beta_i-\hat\beta_j\|_2
+\Delta A(x\mid \mathcal{S}) = A(\mathcal{S}\cup\{x\}) - A(\mathcal{S}).
 $$
 
-进行 Ward 聚类。由于 $\hat\beta$ 已单位化，该距离等价于在二维方向空间中强调“夹角差异”，与“beta 空间去同质化”的目标一致。
-
-
-### 3.3 Ward 层次聚类（优先）
-
-定义欧氏距离：
+贪心迭代规则为：
 
 $$
-d(i,j)=\|\hat\beta_i-\hat\beta_j\|_2.
+x^*=\arg\max_{x\in F'\setminus \mathcal{S}} \Delta A(x\mid \mathcal{S}),
+\qquad
+\mathcal{S}\leftarrow \mathcal{S}\cup\{x^*\},
 $$
 
-使用 Ward linkage 的层次聚类将 $F'$ 划分为 $n_{\mathrm{eff}}$ 个簇：
+重复上述步骤直至 $|\mathcal{S}|=n$。
+
+具体贪心算法实现参考代码 `greedy_convex_hull_volume.py`
+
+---
+
+### 3.5 输出：去同质化的候选资产集合
+
+贪心算法结束后得到最终集合：
 
 $$
-\mathcal{C}=\{C_1,\dots,C_{n_{\mathrm{eff}}}\}.
+\mathcal{S}=\{i_1,\dots,i_n\}\subseteq F'.
 $$
 
-#### 最小簇样本数约束
-
-设最小簇大小 $m_{\min}$（例如 3），要求：
-
-$$
-|C_c|\ge m_{\min}\quad \forall c.
-$$
-
-若目标簇数 $n$ 下无法满足约束，则降低簇数直到满足：
-
-$$
-n_{\mathrm{eff}}=\max\Bigl\{k:\ \min_c |C_c|\ge m_{\min}\Bigr\}.
-$$
-
-### 3.4 每簇选代表：$S_{\mathrm{fit}}$ 优先 + 中心距离次排序
-
-簇 $C_c$ 的中心（在 $\hat\beta$ 空间）：
-
-$$
-\mu_c=\frac{1}{|C_c|}\sum_{i\in C_c}\hat\beta_i.
-$$
-
-定义中心距离：
-
-$$
-d_c(i)=\|\hat\beta_i-\mu_c\|_2,\qquad i\in C_c.
-$$
-
-定义代表选择评分（主次逻辑统一）：
-
-$$
-J(i)=S_{\mathrm{fit}}(i)-\eta\cdot d_c(i),
-$$
-
-其中 $\eta>0$ 很小（仅用于避免离群点作为代表，参数可配置）。
-
-簇代表为：
-
-$$
-i_c^\star=\arg\max_{i\in C_c} J(i).
-$$
-
-最终主资产集合：
-
-$$
-\mathcal{S}=\{i_1^\star,\dots,i_{n_{\mathrm{eff}}}^\star\}.
-$$
-
-### 3.5 每簇 Top-K 备选池
-
-对每个簇 $C_c$，按 $J(i)$ 排序取前 $K$ 个作为替补资产池：
-
-$$
-\mathcal{B}_c=\mathrm{TopK}_{i\in C_c}\bigl(J(i)\bigr).
-$$
+该集合在 $(\mathrm{SMB},\mathrm{QMJ})$ 二维风格空间中具有较大的覆盖范围，可用于后续 bucket 内的风格倾斜（tilt）与权重调整。输出同时保留每个基金的：
+- 锚定日因子暴露 $\beta_i^{(2)}$ 与标准化点 $p_i$；
+- Step 1 趋势一致性综合分 $S_{\mathrm{fit}}(i)$；
+- Kalman 不稳定度分数 $U_i$（用于审计与回溯）。
 
 ---
 

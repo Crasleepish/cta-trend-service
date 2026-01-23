@@ -5,7 +5,6 @@ from datetime import date
 
 import numpy as np
 import pandas as pd
-from sqlalchemy import text
 
 from src.bucket_reco.beta.stability import decode_cov
 from src.bucket_reco.proxy.composite import build_composite_proxy
@@ -212,8 +211,6 @@ def test_run_bucket_asset_recommender_end_to_end(pg_engine) -> None:
     good = ["000008.OF", "000042.OF", "000051.OF", "000055.OF", "000059.OF", "000071.OF"]
     beta_neg = ["000075.OF", "000076.OF"]
     trend_bad = ["000176.OF", "003184.OF"]
-    all_funds = good + beta_neg + trend_bad
-
     nav_rows = []
     noise = np.sin(np.linspace(0, 3.14, len(proxy_index)))
     for idx, code in enumerate(good):
@@ -295,7 +292,14 @@ def test_run_bucket_asset_recommender_end_to_end(pg_engine) -> None:
                 "min_count": 1,
             },
             "beta": {"u_mode": "absolute", "u_value": base_u * 2.0},
-            "cluster": {"n_clusters": 3, "m_min": 1, "eta": 0.0, "top_k": 2},
+            "convex_hull": {
+                "n": 3,
+                "epsilon": 0.0,
+                "M": 256,
+                "rng_seed": 7,
+                "topk_per_iter": 32,
+                "violation_tol": 1e-9,
+            },
         }
     )
     dsn = pg_engine.url.render_as_string(hide_password=False)
@@ -316,14 +320,15 @@ def test_run_bucket_asset_recommender_end_to_end(pg_engine) -> None:
     step1_candidates = set(result.step1["candidates"])
     assert step1_candidates == set(good)
 
-    clusters = result.step2["clusters"]
-    assert len(clusters) == 3
+    selected = result.step2["selected"]
+    assert len(selected) == 3
+    assert set(selected).issubset(set(good))
 
-    rep_set = {c["representative"] for c in clusters}
-    assert rep_set.issubset(set(good))
-
-    for cluster in clusters:
-        members = cluster["members"]
-        topk = cluster["topk"]
-        assert len(topk) <= 2
-        assert all(code in members for code in topk)
+    details = result.step2["details"]
+    assert details
+    for item in details:
+        assert "fund" in item
+        assert "SMB" in item
+        assert "QMJ" in item
+        assert "p_SMB" in item
+        assert "p_QMJ" in item

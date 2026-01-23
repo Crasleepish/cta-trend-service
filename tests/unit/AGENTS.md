@@ -10,7 +10,7 @@
 ```
 .
 |-- test_bucket_reco_runner.py
-|-- test_beta_clustering.py
+|-- test_beta_convex_hull.py
 |-- test_beta_ols.py
 |-- test_beta_stability.py
 |-- test_proxy_composite.py
@@ -24,3 +24,4 @@
 
 * 只测逻辑与边界；如需验证 DB 读取逻辑，使用 Testcontainers 的 fake DB（不直连生产库）。
 * 使用与生产一致的字段语义（日期索引、价格/NAV 序列）。
+* 生产库样例数据可通过 MCP 工具读取后灌入容器 DB，测试内禁止写生产库。

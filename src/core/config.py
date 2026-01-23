@@ -77,11 +77,18 @@ class BucketRecoBetaConfig(BaseModel):
     strict_decode: bool = True
 
 
-class BucketRecoClusterConfig(BaseModel):
-    n_clusters: int = 3
-    m_min: int = 1
-    eta: float = 0.0
-    top_k: int = 3
+class BucketRecoConvexHullConfig(BaseModel):
+    n: int = 3
+    epsilon: float = 0.0
+    M: int = 1024
+    rng_seed: int = 42
+    topk_per_iter: int = 64
+    violation_tol: float = 1e-9
+    max_iters: int | None = None
+    clip_rhopow: float | None = None
+    clip_viol: float | None = None
+    diversity_beta: float = 1.5
+    nms_cos_thresh: float | None = 0.98
 
 
 class BucketRecoConfig(BaseModel):
@@ -90,7 +97,7 @@ class BucketRecoConfig(BaseModel):
     consistency: BucketRecoConsistencyConfig = Field(default_factory=BucketRecoConsistencyConfig)
     score: BucketRecoScoreConfig = Field(default_factory=BucketRecoScoreConfig)
     beta: BucketRecoBetaConfig = Field(default_factory=BucketRecoBetaConfig)
-    cluster: BucketRecoClusterConfig = Field(default_factory=BucketRecoClusterConfig)
+    convex_hull: BucketRecoConvexHullConfig = Field(default_factory=BucketRecoConvexHullConfig)
 
 
 def load_app_config(path: Path | None = None) -> AppConfig:
