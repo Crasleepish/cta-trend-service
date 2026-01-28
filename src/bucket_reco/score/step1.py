@@ -25,8 +25,10 @@ def score_window(
     beta: float,
     w_rho: float,
     w_h: float,
+    *,
+    beta_min: float = 0.0,
 ) -> WindowScore:
-    if not np.isfinite(beta) or beta <= 0:
+    if not np.isfinite(beta) or beta <= beta_min:
         return WindowScore(score=float("nan"), valid=False)
     if not (np.isfinite(rho_T) and np.isfinite(HR)):
         return WindowScore(score=float("nan"), valid=False)

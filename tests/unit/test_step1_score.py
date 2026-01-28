@@ -12,7 +12,11 @@ from src.bucket_reco.score.step1 import (
 
 
 def test_score_window_beta_gate() -> None:
-    result = score_window(rho_T=0.9, HR=1.0, beta=0.0, w_rho=0.5, w_h=0.5)
+    result = score_window(rho_T=0.9, HR=1.0, beta=0.0, w_rho=0.5, w_h=0.5, beta_min=0.0)
+    assert result.valid is False
+    assert np.isnan(result.score)
+
+    result = score_window(rho_T=0.9, HR=1.0, beta=0.2, w_rho=0.5, w_h=0.5, beta_min=0.3)
     assert result.valid is False
     assert np.isnan(result.score)
 

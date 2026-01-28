@@ -47,7 +47,9 @@ Example:
 uv run python -m src.bucket_reco.runner \
   --bucket-name GROWTH \
   --proxy-index 399372.SZ,399374.SZ,399376.SZ \
-  --as-of-date 2025-12-31
+  --as-of-date 2025-12-31 \
+  --beta-vector-fields SMB,QMJ \
+  --score-beta-min 0.3
 ```
 
 ## app.yaml Reference
@@ -80,11 +82,13 @@ uv run python -m src.bucket_reco.runner \
 | `bucket_reco.score.top_k` | Max candidate count after Step1 scoring. |
 | `bucket_reco.score.score_threshold` | Minimum Step1 score threshold. |
 | `bucket_reco.score.min_count` | Minimum candidates required after Step1. |
+| `bucket_reco.score.beta_min` | Minimum beta to accept a window score. |
 | `bucket_reco.beta.u_mode` | Uncertainty filter mode (`absolute`/`quantile`). |
 | `bucket_reco.beta.u_value` | Uncertainty threshold value. |
 | `bucket_reco.beta.mad_eps` | MAD epsilon guard. |
 | `bucket_reco.beta.normalize_eps` | Legacy normalize epsilon (unused in Step2). |
 | `bucket_reco.beta.strict_decode` | Fail on invalid covariance decode when true. |
+| `bucket_reco.beta.vector_fields` | Exposure vector fields used for Step2 selection. |
 | `bucket_reco.convex_hull.n` | Target number of selections. |
 | `bucket_reco.convex_hull.epsilon` | Relative gain stop threshold. |
 | `bucket_reco.convex_hull.M` | Number of sampled sphere directions. |

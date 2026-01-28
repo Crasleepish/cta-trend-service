@@ -67,6 +67,7 @@ class BucketRecoScoreConfig(BaseModel):
     top_k: int = 50
     score_threshold: float = 0.0
     min_count: int = 1
+    beta_min: float = 0.3
 
 
 class BucketRecoBetaConfig(BaseModel):
@@ -75,6 +76,7 @@ class BucketRecoBetaConfig(BaseModel):
     mad_eps: float = 1e-12
     normalize_eps: float = 1e-12
     strict_decode: bool = True
+    vector_fields: list[str] = Field(default_factory=lambda: ["SMB", "QMJ"])
 
 
 class BucketRecoConvexHullConfig(BaseModel):

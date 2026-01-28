@@ -34,15 +34,17 @@ bucket_reco:
     w_rho: 0.5
     w_h: 0.5
     lambdas: {"3M": 0.2, "12M": 0.3, "36M": 0.5}
-    top_k: 50
+    top_k: 500
     score_threshold: 0.0
     min_count: 1
+    beta_min: 0.3
   beta:
     u_mode: "quantile"
     u_value: 0.9
     mad_eps: 1e-12
     normalize_eps: 1e-12
     strict_decode: true
+    vector_fields: ["SMB", "QMJ"]
   convex_hull:
     n: 3
     epsilon: 0.0

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 from dataclasses import dataclass
 from datetime import date
@@ -320,7 +319,14 @@ def _compute_step1(
             if rho is None or hr is None or beta is None:
                 ws = WindowScore(score=float("nan"), valid=False)
             else:
-                ws = score_window(rho, hr, beta, cfg.score.w_rho, cfg.score.w_h)
+                ws = score_window(
+                    rho,
+                    hr,
+                    beta,
+                    cfg.score.w_rho,
+                    cfg.score.w_h,
+                    beta_min=cfg.score.beta_min,
+                )
             window_scores[label] = ws
             window_detail[label] = {
                 "rho_T": rho,
@@ -388,6 +394,10 @@ def _compute_step2(
     if not candidates:
         return {"selected": [], "representatives": [], "details": [], "filtered": []}
 
+    vector_fields = list(cfg.beta.vector_fields)
+    if len(vector_fields) != 2:
+        raise ValueError("bucket_reco.beta.vector_fields must contain exactly 2 fields")
+
     rows = fetch_beta_rows(candidates, as_of_date, engine=engine, schema=schema)
     if rows.empty:
         return {
@@ -402,6 +412,7 @@ def _compute_step2(
     filtered = []
     missing_pbin = 0
     decode_errors = 0
+    missing_fields = 0
     for _, row in rows.iterrows():
         code = str(row["code"])
         p_bin = row.get("P_bin")
@@ -417,7 +428,15 @@ def _compute_step2(
             filtered.append(code)
             decode_errors += 1
             continue
-        beta_points.append({"code": code, "SMB": row["SMB"], "QMJ": row["QMJ"]})
+        try:
+            point: dict[str, float | str] = {"code": code}
+            for field in vector_fields:
+                point[field] = float(row[field])
+        except Exception:
+            filtered.append(code)
+            missing_fields += 1
+            continue
+        beta_points.append(point)
 
     if not beta_points:
         return {"selected": [], "representatives": [], "details": [], "filtered": filtered}
@@ -434,6 +453,7 @@ def _compute_step2(
             "usable": len(beta_df),
             "missing_pbin": missing_pbin,
             "decode_errors": decode_errors,
+            "missing_fields": missing_fields,
             "unstable": len(unstable),
         },
     )
@@ -483,18 +503,16 @@ def _compute_step2(
     details: list[dict[str, Any]] = []
     for code in points.index:
         score = s_fit_scores.get(code)
-        details.append(
-            {
-                "fund": str(code),
-                "SMB": float(beta_df.loc[code, "SMB"]),
-                "QMJ": float(beta_df.loc[code, "QMJ"]),
-                "p_SMB": float(points.loc[code, "SMB"]),
-                "p_QMJ": float(points.loc[code, "QMJ"]),
-                "S_fit": None if score is None else float(score.score),
-                "U": float(U.get(code, np.nan)),
-                "selected": str(code) in selected_codes,
-            }
-        )
+        entry = {
+            "fund": str(code),
+            "S_fit": None if score is None else float(score.score),
+            "U": float(U.get(code, np.nan)),
+            "selected": str(code) in selected_codes,
+        }
+        for field in vector_fields:
+            entry[field] = float(beta_df.loc[code, field])
+            entry[f"p_{field}"] = float(points.loc[code, field])
+        details.append(entry)
 
     return {
         "selected": selected_codes,
@@ -550,6 +568,10 @@ def _apply_overrides(cfg: BucketRecoConfig, args: argparse.Namespace) -> BucketR
         updated.score.top_k = args.score_top_k
     if args.score_min_count is not None:
         updated.score.min_count = args.score_min_count
+    if args.score_beta_min is not None:
+        updated.score.beta_min = args.score_beta_min
+    if args.beta_vector_fields is not None:
+        updated.beta.vector_fields = [item.strip() for item in args.beta_vector_fields.split(",")]
     if args.hull_n is not None:
         updated.convex_hull.n = args.hull_n
     if args.hull_epsilon is not None:
@@ -596,6 +618,8 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--score-threshold", type=float)
     parser.add_argument("--score-top-k", type=int)
     parser.add_argument("--score-min-count", type=int)
+    parser.add_argument("--score-beta-min", type=float)
+    parser.add_argument("--beta-vector-fields", help="comma-separated exposure fields")
     parser.add_argument("--hull-n", type=int)
     parser.add_argument("--hull-epsilon", type=float)
     parser.add_argument("--hull-M", type=int)

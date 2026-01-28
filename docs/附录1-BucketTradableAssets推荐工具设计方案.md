@@ -116,7 +116,7 @@ $$
 HR(i;W)=\frac{1}{|W|}\sum_{t\in W}\mathbf{1}\Bigl(\mathrm{sign}(T_i(t))=\mathrm{sign}(T_G(t))\Bigr).
 $$
 
-### 2.4 硬底线：$\hat\beta(i;W)>0$
+### 2.4 硬底线：$\hat\beta(i;W)>\beta_{\min}$
 
 在窗口 $W$ 上做收益回归（只用于判定同向暴露）：
 
@@ -127,8 +127,11 @@ $$
 得到 $\hat\beta(i;W)$，要求：
 
 $$
-\hat\beta(i;W)>0.
+\hat\beta(i;W)>\beta_{\min}.
 $$
+
+其中 $\beta_{\min}$ 为最小暴露阈值，默认取 0.3（基于当前样本分布与经验校准，用于抑制跨市场或弱相关基金）。
+
 
 ### 2.5 窗口内综合分
 
@@ -186,7 +189,7 @@ $$
 t_i^*=\max\{t\le t_0:\ \beta_i(t)\ \text{存在}\}.
 $$
 
-定义聚类用的暴露向量为（与 bucket 内 tilt 坐标一致，仅使用 SMB 与 QMJ）：
+定义聚类用的暴露向量（需要配置fund_beta表中用于组成暴露向量的字段名，如：SMB,QMJ，以下公式以使用该配置为例）：
 
 $$
 \beta_i^{(2)}=
@@ -194,7 +197,7 @@ $$
 \in\mathbb{R}^2.
 $$
 
-> 注：虽然表中同时存储 MKT/HML/const，但本工具的“去同质化”目标服务于 bucket 内 tilt，仅在 $(\mathrm{SMB},\mathrm{QMJ})$ 空间定义差异。
+> 注：虽然表中同时存储有其它因子暴露字段，但本工具的“去同质化”目标服务于 bucket 内 tilt，仅在**指定字段**对应的向量空间定义差异。
 
 #### (b) 协方差矩阵与方差抽取
 
