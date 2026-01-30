@@ -1,0 +1,7 @@
+buckets:
+  - bucket_name: RISK
+    bucket_proxy: IDX_A
+    assets: FND_A,FND_B
+  - bucket_name: DEF
+    bucket_proxy: IDX_B
+    assets: FND_B

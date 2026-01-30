@@ -10,7 +10,13 @@
 ```
 .
 |-- conftest.py
+|-- e2e/
+|-- fixtures/
+|-- formula/
 |-- helpers/
+|-- integration/
+|-- perf/
+|-- regression/
 |-- test_health.py
 |-- test_job_runner.py
 |-- test_repos_inputs.py
@@ -21,7 +27,13 @@
 ## 文件说明
 
 * `conftest.py`：PostgresContainer 测试容器与 Engine fixtures。
+* `e2e/`：确定性与幂等性 E2E（mock services + fake repos）。
+* `fixtures/`：小型可手算输入与 golden outputs。
+* `formula/`：白皮书公式一致性测试（章节名）。
 * `helpers/db.py`：测试用 DB 表结构辅助（复用 fund_beta 等表建表逻辑）。
+* `integration/`：集成测试（保留占位）。
+* `perf/`：性能基线测试（可选）。
+* `regression/`：回归快照（可选）。
 * `test_health.py`：健康检查基础测试。
 * `test_job_runner.py`：JobRunner 框架流程测试（mock services）。
 * `test_repos_inputs.py`：输入 repos 读取测试（容器内 Postgres）。
