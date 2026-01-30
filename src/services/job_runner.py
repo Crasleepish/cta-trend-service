@@ -5,27 +5,28 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
 from ..repo.inputs import AuxRepo, BetaRepo, BucketRepo, FactorRepo, MarketRepo, NavRepo
-from ..repo.outputs import (
-    FeatureRepo,
-    FeatureRow,
-    SignalRepo,
-    SignalRow,
-    WeightRepo,
-    WeightRow,
-)
+from ..repo.outputs import FeatureRepo, SignalRepo, SignalRow, WeightRepo, WeightRow
 from .contracts import JobType, RunContext, RunRequest, RunResult, RunStatus
+from .feature_service import FeatureRunSummary, FeatureSetSpec
 from .run_audit_service import RunAuditService
 
 
 class FeatureService(Protocol):
-    def compute(
+    def compute_and_persist(
         self,
+        *,
+        run_id: str,
+        strategy_id: str,
+        version: str,
+        snapshot_id: str | None,
+        rebalance_date: date,
         calc_start: date,
         calc_end: date,
         universe: dict[str, Any],
-        snapshot_id: str | None,
+        feature_set: FeatureSetSpec | None,
         dry_run: bool,
-    ) -> list[FeatureRow]: ...
+        force_recompute: bool,
+    ) -> FeatureRunSummary: ...
 
 
 class SignalService(Protocol):
@@ -114,26 +115,32 @@ class JobRunner:
     def _feature_flow(self, ctx: RunContext, req: RunRequest) -> RunResult:
         calc_start, calc_end = self._resolve_calc_range(req)
         universe = self._resolve_universe(req)
-        coverage = self._build_input_coverage(calc_start, calc_end, universe)
-        self._assert_coverage(coverage, req.dry_run)
-
         input_range = {
             "calc_range": [calc_start.isoformat(), calc_end.isoformat()],
             "universe": universe,
-            "coverage": coverage,
         }
         self.audit.update_inputs(ctx.run_id, input_range)
-
-        rows = self.feature_service.compute(
-            calc_start, calc_end, universe, ctx.snapshot_id, req.dry_run
+        summary = self.feature_service.compute_and_persist(
+            run_id=ctx.run_id,
+            strategy_id=ctx.strategy_id,
+            version=ctx.version,
+            snapshot_id=ctx.snapshot_id,
+            rebalance_date=req.rebalance_date,
+            calc_start=calc_start,
+            calc_end=calc_end,
+            universe=universe,
+            feature_set=req.feature_set,
+            dry_run=req.dry_run,
+            force_recompute=req.force_recompute,
         )
-        rows_upserted = 0
-        if not req.dry_run:
-            rows_upserted = self.feature_repo.upsert_many(rows)
-
+        input_range["coverage"] = summary.coverage
+        self.audit.update_inputs(ctx.run_id, input_range)
         outputs = {
-            "rows_upserted": {"feature_daily": rows_upserted},
-            "date_coverage": coverage,
+            "rows_upserted": {
+                "feature_daily": summary.rows_upserted_daily,
+                "feature_weekly_sample": summary.rows_upserted_weekly,
+            },
+            "date_coverage": summary.coverage,
             "checks": {},
         }
         self.audit.finish_success(ctx.run_id, outputs)
@@ -210,25 +217,33 @@ class JobRunner:
     def _full_flow(self, ctx: RunContext, req: RunRequest) -> RunResult:
         calc_start, calc_end = self._resolve_calc_range(req)
         universe = self._resolve_universe(req)
-        coverage = self._build_input_coverage(calc_start, calc_end, universe)
-        self._assert_coverage(coverage, req.dry_run)
-
         input_range = {
             "calc_range": [calc_start.isoformat(), calc_end.isoformat()],
             "universe": universe,
-            "coverage": coverage,
         }
         self.audit.update_inputs(ctx.run_id, input_range)
 
         step_outputs: dict[str, Any] = {}
 
-        feature_rows = self.feature_service.compute(
-            calc_start, calc_end, universe, ctx.snapshot_id, req.dry_run
+        feature_summary = self.feature_service.compute_and_persist(
+            run_id=ctx.run_id,
+            strategy_id=ctx.strategy_id,
+            version=ctx.version,
+            snapshot_id=ctx.snapshot_id,
+            rebalance_date=req.rebalance_date,
+            calc_start=calc_start,
+            calc_end=calc_end,
+            universe=universe,
+            feature_set=req.feature_set,
+            dry_run=req.dry_run,
+            force_recompute=req.force_recompute,
         )
-        feature_upsert = 0
-        if not req.dry_run:
-            feature_upsert = self.feature_repo.upsert_many(feature_rows)
-        step_outputs["feature"] = {"rows_upserted": feature_upsert}
+        input_range["coverage"] = feature_summary.coverage
+        self.audit.update_inputs(ctx.run_id, input_range)
+        step_outputs["feature"] = {
+            "rows_upserted": feature_summary.rows_upserted_daily,
+            "weekly_rows_upserted": feature_summary.rows_upserted_weekly,
+        }
 
         signal_rows = self.signal_service.compute(
             req.rebalance_date, universe, ctx.snapshot_id, req.dry_run
@@ -248,12 +263,13 @@ class JobRunner:
 
         outputs = {
             "rows_upserted": {
-                "feature_daily": feature_upsert,
+                "feature_daily": feature_summary.rows_upserted_daily,
+                "feature_weekly_sample": feature_summary.rows_upserted_weekly,
                 "signal_weekly": signal_upsert,
                 "portfolio_weight_weekly": weight_upsert,
             },
             "steps": step_outputs,
-            "date_coverage": coverage,
+            "date_coverage": feature_summary.coverage,
             "checks": {},
         }
         self.audit.finish_success(ctx.run_id, outputs)

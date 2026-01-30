@@ -11,6 +11,30 @@ logging:
   retention_days: 365
   prefix: "app"
 
+features:
+  enabled_features:
+    - "r_log_daily"
+    - "sigma_ann"
+    - "sigma_eff"
+    - "f_sigma"
+    - "T"
+    - "gate_state"
+    - "down_drift"
+    - "T_RATE"
+    - "rate_pref"
+  short_window: 20
+  long_window: 60
+  vol_window: 20
+  annualize: 252
+  theta_on: 0.5
+  theta_off: 0.2
+  theta_minus: 0.5
+  sigma_min: 0.0
+  sigma_max: 1.0
+  kappa_sigma: 0.1
+  rate_k: 2.0
+  theta_rate: 0.0
+
 bucket_reco:
   proxy:
     weight_mode: "inv_vol"

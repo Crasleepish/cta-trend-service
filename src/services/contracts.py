@@ -5,6 +5,8 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any
 
+from .feature_service import FeatureSetSpec
+
 
 class JobType(str, Enum):
     FEATURE = "FEATURE"
@@ -37,6 +39,7 @@ class RunRequest:
     calc_end: date | None = None
     lookback: dict[str, Any] | None = None
     universe: dict[str, Any] | None = None
+    feature_set: FeatureSetSpec | None = None
     dry_run: bool = False
     force_recompute: bool = False
     tags: dict[str, str] | None = None

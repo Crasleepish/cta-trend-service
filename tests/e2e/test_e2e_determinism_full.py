@@ -9,6 +9,7 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 from src.services.contracts import JobType, RunContext, RunRequest
+from src.services.feature_service import FeatureRunSummary, FeatureSetSpec
 from src.services.job_runner import JobRunner
 from src.services.run_audit_service import RunAuditService
 from tests.helpers.fakes import (
@@ -22,28 +23,42 @@ from tests.helpers.fakes import (
 
 @dataclass
 class MockFeatureService:
-    def compute(
+    def compute_and_persist(
         self,
+        *,
+        run_id: str,
+        strategy_id: str,
+        version: str,
+        snapshot_id: str | None,
+        rebalance_date: date,
         calc_start: date,
         calc_end: date,
         universe: dict[str, Any],
-        snapshot_id: str | None,
+        feature_set: FeatureSetSpec | None,
         dry_run: bool,
-    ) -> list[dict[str, Any]]:
-        rows = []
-        for inst in universe["instrument_ids"]:
-            rows.append(
-                {
-                    "strategy_id": "s1",
-                    "version": "v1",
-                    "instrument_id": inst,
-                    "calc_date": calc_end,
-                    "feature_name": "trend",
-                    "value": 1.0,
-                    "meta_json": None,
-                }
-            )
-        return rows
+        force_recompute: bool,
+    ) -> FeatureRunSummary:
+        _ = (
+            run_id,
+            strategy_id,
+            version,
+            snapshot_id,
+            rebalance_date,
+            calc_start,
+            calc_end,
+            feature_set,
+            dry_run,
+            force_recompute,
+        )
+        return FeatureRunSummary(
+            calc_date_range=(calc_start, calc_end),
+            instruments_count=len(universe["instrument_ids"]),
+            features_generated=["T"],
+            rows_upserted_daily=len(universe["instrument_ids"]),
+            rows_upserted_weekly=len(universe["instrument_ids"]),
+            warnings=[],
+            coverage={},
+        )
 
 
 @dataclass
@@ -162,6 +177,7 @@ def test_e2e_determinism_full() -> None:
         calc_start=date(2025, 12, 1),
         calc_end=date(2026, 1, 16),
         universe={"bucket_ids": [1]},
+        feature_set=None,
     )
 
     runner1, feature1, signal1, weight1 = _build_runner()

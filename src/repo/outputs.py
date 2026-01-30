@@ -71,6 +71,16 @@ def _feature_table(schema: str | None) -> Table:
     )
 
 
+class FeatureWeeklySampleRow(TypedDict):
+    strategy_id: str
+    version: str
+    instrument_id: str
+    rebalance_date: date
+    feature_name: str
+    value: float
+    meta_json: dict[str, object] | None
+
+
 def _signal_table(schema: str | None) -> Table:
     metadata = MetaData(schema=schema)
     return Table(
@@ -139,6 +149,31 @@ class FeatureRepo(BaseRepo):
         self._table = _feature_table(schema)
 
     def upsert_many(self, rows: Sequence[FeatureRow]) -> int:
+        stmt = _upsert_statement(self._table, rows)
+        return self._execute_many(stmt, rows)
+
+
+def _feature_weekly_sample_table(schema: str | None) -> Table:
+    metadata = MetaData(schema=schema)
+    return Table(
+        "feature_weekly_sample",
+        metadata,
+        Column("strategy_id", String(64), primary_key=True),
+        Column("version", String(32), primary_key=True),
+        Column("instrument_id", String(64), primary_key=True),
+        Column("rebalance_date", Date, primary_key=True),
+        Column("feature_name", String(64), primary_key=True),
+        Column("value", Float, nullable=False),
+        Column("meta_json", JSONB, nullable=True),
+    )
+
+
+class FeatureWeeklySampleRepo(BaseRepo):
+    def __init__(self, engine: Engine, schema: str | None = "cta") -> None:
+        super().__init__(engine)
+        self._table = _feature_weekly_sample_table(schema)
+
+    def upsert_many(self, rows: Sequence[FeatureWeeklySampleRow]) -> int:
         stmt = _upsert_statement(self._table, rows)
         return self._execute_many(stmt, rows)
 

@@ -19,7 +19,7 @@
 
 * `base.py`：共享 DB 执行/查询辅助方法。
 * `inputs.py`：只读输入表 repos（bucket/market/factor/nav/beta/aux）。
-* `outputs.py`：写输出表 repos（feature/signal/weight/run），包含 upsert。
+* `outputs.py`：写输出表 repos（feature_daily/feature_weekly_sample/signal/weight/run），包含 upsert。
 * `__init__.py`：保持空，不放逻辑。
 
 ## 本模块约束/规范

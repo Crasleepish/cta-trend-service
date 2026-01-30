@@ -85,6 +85,7 @@ All behavior must be callable and testable.
 |   |-- main.py                 # FastAPI entrypoint
 |   |-- api/                    # HTTP routes
 |   |-- core/                   # config/logging/db/schema
+|   |-- features/               # feature registry/computer/sampler
 |   |-- repo/                   # DB access (read/write)
 |   |-- services/               # sync orchestration + audit
 |   |-- bucket_reco/            # BucketTradableAssets tool modules

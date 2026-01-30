@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from typing import Any
 
 from src.services.contracts import JobType, RunContext, RunRequest, RunStatus
+from src.services.feature_service import FeatureRunSummary, FeatureSetSpec
 from src.services.job_runner import JobRunner
 
 
@@ -49,18 +51,43 @@ class FakeUpsertRepo:
 
 
 class FakeFeatureService:
-    def compute(self, *args, **kwargs):
-        return [
-            {
-                "strategy_id": "cta_trend_v1",
-                "version": "1.0.0",
-                "instrument_id": "F1",
-                "calc_date": date(2026, 1, 1),
-                "feature_name": "T",
-                "value": 1.0,
-                "meta_json": None,
-            }
-        ]
+    def compute_and_persist(
+        self,
+        *,
+        run_id: str,
+        strategy_id: str,
+        version: str,
+        snapshot_id: str | None,
+        rebalance_date: date,
+        calc_start: date,
+        calc_end: date,
+        universe: dict[str, Any],
+        feature_set: FeatureSetSpec | None,
+        dry_run: bool,
+        force_recompute: bool,
+    ) -> FeatureRunSummary:
+        _ = (
+            run_id,
+            strategy_id,
+            version,
+            snapshot_id,
+            rebalance_date,
+            calc_start,
+            calc_end,
+            universe,
+            feature_set,
+            dry_run,
+            force_recompute,
+        )
+        return FeatureRunSummary(
+            calc_date_range=(calc_start, calc_end),
+            instruments_count=1,
+            features_generated=["T"],
+            rows_upserted_daily=1,
+            rows_upserted_weekly=1,
+            warnings=[],
+            coverage={},
+        )
 
 
 class FakeSignalService:
@@ -140,4 +167,5 @@ def test_job_runner_run_full_success() -> None:
     result = runner.run_full(ctx, req)
     assert result.status == RunStatus.SUCCESS
     assert result.outputs["rows_upserted"]["feature_daily"] == 1
+    assert result.outputs["rows_upserted"]["feature_weekly_sample"] == 1
     assert audit.started is True

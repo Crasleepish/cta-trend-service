@@ -11,12 +11,14 @@
 .
 |-- contracts.py
 |-- job_runner.py
+|-- feature_service.py
 `-- run_audit_service.py
 ```
 
 ## 文件说明
 
 * `contracts.py`：RunContext/RunRequest/RunResult 与 JobType/RunStatus。
+* `feature_service.py`：特征计算编排与落库（feature_daily + weekly sample）。
 * `run_audit_service.py`：job_run 运行审计（RUNNING/SUCCESS/FAILED）。
 * `job_runner.py`：同步任务编排（FEATURE/SIGNAL/PORTFOLIO/FULL）。
 

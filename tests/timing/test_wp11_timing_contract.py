@@ -4,27 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-
-def sample_week_last_trading_day(dates: pd.DatetimeIndex) -> pd.DatetimeIndex:
-    if dates.empty:
-        return dates
-    iso = dates.isocalendar()
-    df = pd.DataFrame({"date": dates, "year": iso.year, "week": iso.week})
-    last = df.groupby(["year", "week"])["date"].max().sort_values()
-    return pd.DatetimeIndex(last)
-
-
-def rolling_window_dates(
-    dates: pd.DatetimeIndex, decision_date: pd.Timestamp, window: int
-) -> pd.DatetimeIndex:
-    if window <= 0:
-        raise ValueError("window must be positive")
-    if decision_date not in dates:
-        raise ValueError("decision_date must be in dates")
-    prior = dates[dates < decision_date]
-    if len(prior) < window:
-        raise ValueError("not enough history before decision_date")
-    return pd.DatetimeIndex(prior[-window:])
+from src.features.sampler import rolling_window_dates, sample_week_last_trading_day
 
 
 def test_wp11_sample_week_last_trading_day_missing_friday() -> None:

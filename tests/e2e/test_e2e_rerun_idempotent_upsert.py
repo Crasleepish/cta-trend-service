@@ -81,6 +81,7 @@ def test_e2e_rerun_idempotent_upsert() -> None:
         calc_start=date(2025, 12, 1),
         calc_end=today,
         universe={"bucket_ids": [1]},
+        feature_set=None,
     )
 
     runner.run_full(ctx, req)

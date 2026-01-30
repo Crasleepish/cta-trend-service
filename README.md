@@ -64,6 +64,19 @@ uv run python -m src.bucket_reco.runner \
 | `logging.level` | Log level (`INFO`, `DEBUG`, etc.). |
 | `logging.retention_days` | Days to retain rotated logs. |
 | `logging.prefix` | Log file prefix. |
+| `features.enabled_features` | Enabled CTA feature names (empty = default set). |
+| `features.short_window` | Short moving-average window length (daily). |
+| `features.long_window` | Long moving-average window length (daily). |
+| `features.vol_window` | Volatility rolling window length (daily). |
+| `features.annualize` | Annualization factor for volatility (e.g., 252). |
+| `features.theta_on` | Gate on-threshold for hysteresis. |
+| `features.theta_off` | Gate off-threshold for hysteresis. |
+| `features.theta_minus` | Downward-drift threshold. |
+| `features.sigma_min` | Volatility floor for sigma_eff. |
+| `features.sigma_max` | Volatility cutoff center for f_sigma. |
+| `features.kappa_sigma` | Logistic slope for f_sigma. |
+| `features.rate_k` | Logistic slope for RATE preference. |
+| `features.theta_rate` | RATE preference center (default 0). |
 | `bucket_reco.proxy.weight_mode` | Proxy weight mode (`equal` or `inv_vol`). |
 | `bucket_reco.proxy.annualize` | Annualization factor for volatility (e.g., 252). |
 | `bucket_reco.proxy.clip_min` | Minimum weight clip for proxy weights (nullable). |

@@ -4,7 +4,7 @@
 * 阶段 3：同步任务执行与审计闭环（JobRunner + run_id + 错误可追溯）（已完成）
 * 阶段 3a：实现 Bucket Tradable Assets 推荐工具（已完成）
 * 阶段 4：算法测试框架先行（按白皮书章节的公式一致性与可复现测试）（已完成）
-* 阶段 5：特征层实现并验算（FeatureService 产出 feature_daily/采样）
+* 阶段 5：特征层实现并验算（FeatureService 产出 feature_daily/采样）（已完成）
 * 阶段 6：组合权重层实现并验算（PortfolioService 产出 portfolio_weight_weekly）
 * 阶段 7：API 闭环对接（触发计算 + 查询权重/运行记录）
 * 阶段 8：CLI 与定时运行上线（cron/systemd 周期产出权重）

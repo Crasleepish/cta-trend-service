@@ -20,6 +20,18 @@ def build_metadata(schema: str | None) -> MetaData:
     )
 
     Table(
+        "feature_weekly_sample",
+        metadata,
+        Column("strategy_id", String(64), primary_key=True),
+        Column("version", String(32), primary_key=True),
+        Column("instrument_id", String(64), primary_key=True),
+        Column("rebalance_date", Date, primary_key=True),
+        Column("feature_name", String(64), primary_key=True),
+        Column("value", Float, nullable=False),
+        Column("meta_json", JSONB, nullable=True),
+    )
+
+    Table(
         "signal_weekly",
         metadata,
         Column("strategy_id", String(64), primary_key=True),

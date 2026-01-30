@@ -21,10 +21,39 @@ class LoggingConfig(BaseModel):
     prefix: str = "app"
 
 
+class FeatureConfig(BaseModel):
+    enabled_features: list[str] = Field(
+        default_factory=lambda: [
+            "r_log_daily",
+            "sigma_ann",
+            "sigma_eff",
+            "f_sigma",
+            "T",
+            "gate_state",
+            "down_drift",
+            "T_RATE",
+            "rate_pref",
+        ]
+    )
+    short_window: int = 20
+    long_window: int = 60
+    vol_window: int = 20
+    annualize: int = 252
+    theta_on: float = 0.5
+    theta_off: float = 0.2
+    theta_minus: float = 0.5
+    sigma_min: float = 0.0
+    sigma_max: float = 1.0
+    kappa_sigma: float = 0.1
+    rate_k: float = 2.0
+    theta_rate: float = 0.0
+
+
 class AppConfig(BaseModel):
     env: str = "dev"
     db: DbConfig
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    features: FeatureConfig = Field(default_factory=FeatureConfig)
     bucket_reco: "BucketRecoConfig" = Field(default_factory=lambda: BucketRecoConfig())
 
 
