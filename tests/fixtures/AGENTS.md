@@ -13,6 +13,7 @@
 |-- mini_factors.csv
 |-- mini_nav.csv
 |-- mini_bucket.yaml
+|-- golden/
 `-- expected/
 ```
 

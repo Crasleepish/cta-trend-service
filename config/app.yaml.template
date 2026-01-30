@@ -35,6 +35,13 @@ features:
   rate_k: 2.0
   theta_rate: 0.0
 
+signals:
+  tilt_factors: ["SMB", "QMJ"]
+  tilt_lookback_days: 60
+  tilt_scales: {"SMB": 1.0, "QMJ": 1.0}
+  tilt_eps: 1e-12
+  tilt_temperature: 1.0
+
 bucket_reco:
   proxy:
     weight_mode: "inv_vol"

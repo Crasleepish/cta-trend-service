@@ -63,23 +63,33 @@ class MockFeatureService:
 
 @dataclass
 class MockSignalService:
-    def compute(
-        self, rebalance_date: date, universe: dict[str, Any], snapshot_id: str | None, dry_run: bool
-    ) -> list[dict[str, Any]]:
-        rows = []
-        for inst in universe["instrument_ids"]:
-            rows.append(
-                {
-                    "strategy_id": "s1",
-                    "version": "v1",
-                    "instrument_id": inst,
-                    "rebalance_date": rebalance_date,
-                    "signal_name": "signal",
-                    "value": 0.5,
-                    "meta_json": None,
-                }
-            )
-        return rows
+    def compute_and_persist_signals(
+        self,
+        *,
+        run_id: str,
+        strategy_id: str,
+        version: str,
+        snapshot_id: str | None,
+        rebalance_date: date,
+        universe: dict[str, Any],
+        dry_run: bool,
+        force_recompute: bool,
+    ):
+        _ = (
+            run_id,
+            strategy_id,
+            version,
+            snapshot_id,
+            rebalance_date,
+            universe,
+            dry_run,
+            force_recompute,
+        )
+        return type(
+            "Summary",
+            (),
+            {"rows_upserted": len(universe["instrument_ids"])},
+        )()
 
 
 @dataclass

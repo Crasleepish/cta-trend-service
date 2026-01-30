@@ -77,6 +77,11 @@ uv run python -m src.bucket_reco.runner \
 | `features.kappa_sigma` | Logistic slope for f_sigma. |
 | `features.rate_k` | Logistic slope for RATE preference. |
 | `features.theta_rate` | RATE preference center (default 0). |
+| `signals.tilt_factors` | Factor names used for tilt tendency vector. |
+| `signals.tilt_lookback_days` | Lookback days for factor tendency vector. |
+| `signals.tilt_scales` | Diagonal scaling per factor dimension. |
+| `signals.tilt_eps` | Epsilon guard for cosine stability. |
+| `signals.tilt_temperature` | Softmax temperature for tilt weights. |
 | `bucket_reco.proxy.weight_mode` | Proxy weight mode (`equal` or `inv_vol`). |
 | `bucket_reco.proxy.annualize` | Annualization factor for volatility (e.g., 252). |
 | `bucket_reco.proxy.clip_min` | Minimum weight clip for proxy weights (nullable). |

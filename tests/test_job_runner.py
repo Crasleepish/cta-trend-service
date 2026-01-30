@@ -91,18 +91,33 @@ class FakeFeatureService:
 
 
 class FakeSignalService:
-    def compute(self, *args, **kwargs):
-        return [
-            {
-                "strategy_id": "cta_trend_v1",
-                "version": "1.0.0",
-                "instrument_id": "F1",
-                "rebalance_date": date(2026, 1, 1),
-                "signal_name": "S",
-                "value": 1.0,
-                "meta_json": None,
-            }
-        ]
+    def compute_and_persist_signals(
+        self,
+        *,
+        run_id: str,
+        strategy_id: str,
+        version: str,
+        snapshot_id: str | None,
+        rebalance_date: date,
+        universe: dict[str, Any],
+        dry_run: bool,
+        force_recompute: bool,
+    ):
+        _ = (
+            run_id,
+            strategy_id,
+            version,
+            snapshot_id,
+            rebalance_date,
+            universe,
+            dry_run,
+            force_recompute,
+        )
+        return type(
+            "Summary",
+            (),
+            {"rows_upserted": 1},
+        )()
 
 
 class FakePortfolioService:

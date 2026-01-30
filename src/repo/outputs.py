@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Mapping, Sequence, TypedDict
+from typing import Mapping, Sequence, TypedDict, cast
 
-from sqlalchemy import Column, Date, DateTime, Float, MetaData, String, Table, Text, update
+from sqlalchemy import Column, Date, DateTime, Float, MetaData, String, Table, Text, select, update
 from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql import Insert
@@ -176,6 +176,27 @@ class FeatureWeeklySampleRepo(BaseRepo):
     def upsert_many(self, rows: Sequence[FeatureWeeklySampleRow]) -> int:
         stmt = _upsert_statement(self._table, rows)
         return self._execute_many(stmt, rows)
+
+    def get_range(
+        self,
+        *,
+        strategy_id: str,
+        version: str,
+        rebalance_date: date,
+        instrument_ids: Sequence[str] | None = None,
+        feature_names: Sequence[str] | None = None,
+    ) -> list[FeatureWeeklySampleRow]:
+        stmt = (
+            select(self._table)
+            .where(self._table.c.strategy_id == strategy_id)
+            .where(self._table.c.version == version)
+            .where(self._table.c.rebalance_date == rebalance_date)
+        )
+        if instrument_ids:
+            stmt = stmt.where(self._table.c.instrument_id.in_(instrument_ids))
+        if feature_names:
+            stmt = stmt.where(self._table.c.feature_name.in_(feature_names))
+        return cast(list[FeatureWeeklySampleRow], self._fetch_all(stmt))
 
 
 class SignalRepo(BaseRepo):

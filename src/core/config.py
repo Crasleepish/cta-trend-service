@@ -49,11 +49,20 @@ class FeatureConfig(BaseModel):
     theta_rate: float = 0.0
 
 
+class SignalConfig(BaseModel):
+    tilt_factors: list[str] = Field(default_factory=lambda: ["SMB", "QMJ"])
+    tilt_lookback_days: int = 60
+    tilt_scales: dict[str, float] = Field(default_factory=lambda: {"SMB": 1.0, "QMJ": 1.0})
+    tilt_eps: float = 1e-12
+    tilt_temperature: float = 1.0
+
+
 class AppConfig(BaseModel):
     env: str = "dev"
     db: DbConfig
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
+    signals: SignalConfig = Field(default_factory=SignalConfig)
     bucket_reco: "BucketRecoConfig" = Field(default_factory=lambda: BucketRecoConfig())
 
 
