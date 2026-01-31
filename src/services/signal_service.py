@@ -128,6 +128,7 @@ class SignalService:
                     "instrument_id": row["instrument_id"],
                     "rebalance_date": row["rebalance_date"],
                     "signal_name": row["feature_name"],
+                    "bucket_id": row["instrument_id"],
                     "value": float(row["value"]),
                     "meta_json": {
                         "run_id": run_id,
@@ -164,6 +165,7 @@ class SignalService:
                         "instrument_id": bucket,
                         "rebalance_date": bucket_slice["rebalance_date"].iloc[0],
                         "signal_name": name,
+                        "bucket_id": bucket,
                         "value": float(value),
                         "meta_json": {
                             "run_id": run_id,
@@ -306,6 +308,7 @@ class SignalService:
                 "instrument_id": asset,
                 "rebalance_date": rebalance_date,
                 "signal_name": "tilt_score",
+                "bucket_id": bucket_id,
                 "value": float(score),
                 "meta_json": {
                     "run_id": run_id,
@@ -319,6 +322,7 @@ class SignalService:
                 "instrument_id": asset,
                 "rebalance_date": rebalance_date,
                 "signal_name": "tilt_weight",
+                "bucket_id": bucket_id,
                 "value": float(weight),
                 "meta_json": {
                     "run_id": run_id,

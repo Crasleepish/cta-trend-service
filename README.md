@@ -24,6 +24,8 @@ cp config/app.yaml.template config/app.yaml
 curl http://localhost:8081/health
 ```
 
+API 文档详见 `docs/API.md`。
+
 ## Config
 
 - Default config path: `config/app.yaml`
@@ -64,6 +66,9 @@ uv run python -m src.bucket_reco.runner \
 | `logging.level` | Log level (`INFO`, `DEBUG`, etc.). |
 | `logging.retention_days` | Days to retain rotated logs. |
 | `logging.prefix` | Log file prefix. |
+| `strategy.default_strategy_id` | Default strategy id for API/job requests. |
+| `strategy.default_version` | Default strategy version for API/job requests. |
+| `strategy.default_portfolio_id` | Default portfolio id for API/job requests. |
 | `features.enabled_features` | Enabled CTA feature names (empty = default set). |
 | `features.short_window` | Short moving-average window length (daily). |
 | `features.long_window` | Long moving-average window length (daily). |
@@ -115,6 +120,8 @@ uv run python -m src.bucket_reco.runner \
 | `bucket_reco.convex_hull.M` | Number of sampled sphere directions. |
 | `bucket_reco.convex_hull.rng_seed` | RNG seed for sphere sampling. |
 | `bucket_reco.convex_hull.topk_per_iter` | Candidate shortlist size per iteration. |
+
+Note: defensive buckets are fixed to `RATE` and `CASH` in code; only `portfolio.risk_buckets` is configurable.
 | `bucket_reco.convex_hull.violation_tol` | Constraint violation tolerance. |
 | `bucket_reco.convex_hull.max_iters` | Max greedy iterations (nullable). |
 | `bucket_reco.convex_hull.clip_rhopow` | Clip for rho power (nullable). |

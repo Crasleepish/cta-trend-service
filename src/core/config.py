@@ -76,10 +76,17 @@ class PortfolioConfig(BaseModel):
     )
 
 
+class StrategyConfig(BaseModel):
+    default_strategy_id: str = "cta_trend_v1"
+    default_version: str = "1.0.0"
+    default_portfolio_id: str = "main"
+
+
 class AppConfig(BaseModel):
     env: str = "dev"
     db: DbConfig
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    strategy: StrategyConfig = Field(default_factory=StrategyConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
     signals: SignalConfig = Field(default_factory=SignalConfig)
     portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)

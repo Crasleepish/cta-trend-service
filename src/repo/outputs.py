@@ -3,7 +3,21 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Mapping, Sequence, TypedDict, cast
 
-from sqlalchemy import Column, Date, DateTime, Float, MetaData, String, Table, Text, select, update
+from sqlalchemy import (
+    Column,
+    Date,
+    DateTime,
+    Float,
+    MetaData,
+    String,
+    Table,
+    Text,
+    and_,
+    desc,
+    or_,
+    select,
+    update,
+)
 from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql import Insert
@@ -27,6 +41,7 @@ class SignalRow(TypedDict):
     instrument_id: str
     rebalance_date: date
     signal_name: str
+    bucket_id: str | None
     value: float
     meta_json: dict[str, object] | None
 
@@ -91,6 +106,7 @@ def _signal_table(schema: str | None) -> Table:
         Column("instrument_id", String(64), primary_key=True),
         Column("rebalance_date", Date, primary_key=True),
         Column("signal_name", String(64), primary_key=True),
+        Column("bucket_id", String(64)),
         Column("value", Float, nullable=False),
         Column("meta_json", JSONB, nullable=True),
     )
@@ -216,6 +232,7 @@ class SignalRepo(BaseRepo):
         rebalance_date: date,
         instrument_ids: Sequence[str] | None = None,
         signal_names: Sequence[str] | None = None,
+        signal_name_prefix: str | None = None,
     ) -> list[SignalRow]:
         stmt = (
             select(self._table)
@@ -227,7 +244,37 @@ class SignalRepo(BaseRepo):
             stmt = stmt.where(self._table.c.instrument_id.in_(instrument_ids))
         if signal_names:
             stmt = stmt.where(self._table.c.signal_name.in_(signal_names))
+        if signal_name_prefix:
+            stmt = stmt.where(self._table.c.signal_name.like(f"{signal_name_prefix}%"))
         return cast(list[SignalRow], self._fetch_all(stmt))
+
+    def get_latest(
+        self,
+        *,
+        strategy_id: str,
+        version: str,
+        instrument_ids: Sequence[str] | None = None,
+        signal_names: Sequence[str] | None = None,
+    ) -> tuple[date, list[SignalRow]] | None:
+        stmt = (
+            select(self._table.c.rebalance_date)
+            .where(self._table.c.strategy_id == strategy_id)
+            .where(self._table.c.version == version)
+            .order_by(desc(self._table.c.rebalance_date))
+            .limit(1)
+        )
+        row = self._fetch_one(stmt)
+        if not row:
+            return None
+        rebalance_date = cast(date, row["rebalance_date"])
+        rows = self.get_range(
+            strategy_id=strategy_id,
+            version=version,
+            rebalance_date=rebalance_date,
+            instrument_ids=instrument_ids,
+            signal_names=signal_names,
+        )
+        return rebalance_date, rows
 
 
 class WeightRepo(BaseRepo):
@@ -238,6 +285,70 @@ class WeightRepo(BaseRepo):
     def upsert_many(self, rows: Sequence[WeightRow]) -> int:
         stmt = _upsert_statement(self._table, rows)
         return self._execute_many(stmt, rows)
+
+    def get_by_date(
+        self,
+        *,
+        strategy_id: str,
+        version: str,
+        portfolio_id: str,
+        rebalance_date: date,
+    ) -> list[WeightRow]:
+        stmt = (
+            select(self._table)
+            .where(self._table.c.strategy_id == strategy_id)
+            .where(self._table.c.version == version)
+            .where(self._table.c.portfolio_id == portfolio_id)
+            .where(self._table.c.rebalance_date == rebalance_date)
+        )
+        return cast(list[WeightRow], self._fetch_all(stmt))
+
+    def get_latest(
+        self,
+        *,
+        strategy_id: str,
+        version: str,
+        portfolio_id: str,
+    ) -> tuple[date, list[WeightRow]] | None:
+        stmt = (
+            select(self._table.c.rebalance_date)
+            .where(self._table.c.strategy_id == strategy_id)
+            .where(self._table.c.version == version)
+            .where(self._table.c.portfolio_id == portfolio_id)
+            .order_by(desc(self._table.c.rebalance_date))
+            .limit(1)
+        )
+        row = self._fetch_one(stmt)
+        if not row:
+            return None
+        rebalance_date = cast(date, row["rebalance_date"])
+        rows = self.get_by_date(
+            strategy_id=strategy_id,
+            version=version,
+            portfolio_id=portfolio_id,
+            rebalance_date=rebalance_date,
+        )
+        return rebalance_date, rows
+
+    def get_history(
+        self,
+        *,
+        strategy_id: str,
+        version: str,
+        portfolio_id: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[WeightRow]:
+        stmt = (
+            select(self._table)
+            .where(self._table.c.strategy_id == strategy_id)
+            .where(self._table.c.version == version)
+            .where(self._table.c.portfolio_id == portfolio_id)
+            .where(self._table.c.rebalance_date >= start_date)
+            .where(self._table.c.rebalance_date <= end_date)
+            .order_by(self._table.c.rebalance_date, self._table.c.instrument_id)
+        )
+        return cast(list[WeightRow], self._fetch_all(stmt))
 
 
 class RunRepo(BaseRepo):
@@ -254,3 +365,64 @@ class RunRepo(BaseRepo):
             return 0
         stmt = update(self._table).where(self._table.c.run_id == run_id).values(**fields)
         return self._execute(stmt)
+
+    def get_by_id(self, run_id: str) -> JobRunRow | None:
+        stmt = select(self._table).where(self._table.c.run_id == run_id)
+        row = self._fetch_one(stmt)
+        return cast(JobRunRow | None, row)
+
+    def list_runs(
+        self,
+        *,
+        limit: int,
+        cursor: tuple[datetime, str] | None = None,
+        status: str | None = None,
+        job_type: str | None = None,
+        strategy_id: str | None = None,
+        version: str | None = None,
+    ) -> list[JobRunRow]:
+        stmt = select(self._table)
+        if status:
+            stmt = stmt.where(self._table.c.status == status)
+        if job_type:
+            stmt = stmt.where(self._table.c.job_type == job_type)
+        if strategy_id:
+            stmt = stmt.where(self._table.c.strategy_id == strategy_id)
+        if version:
+            stmt = stmt.where(self._table.c.version == version)
+        if cursor:
+            time_start, run_id = cursor
+            stmt = stmt.where(
+                or_(
+                    self._table.c.time_start < time_start,
+                    and_(
+                        self._table.c.time_start == time_start,
+                        self._table.c.run_id < run_id,
+                    ),
+                )
+            )
+        stmt = stmt.order_by(desc(self._table.c.time_start), desc(self._table.c.run_id)).limit(
+            limit
+        )
+        return cast(list[JobRunRow], self._fetch_all(stmt))
+
+    def get_by_idempotency_key(
+        self,
+        *,
+        idempotency_key: str,
+        job_type: str,
+        strategy_id: str,
+        version: str,
+    ) -> JobRunRow | None:
+        tags = self._table.c.input_range_json["tags"]["idempotency_key"].astext
+        stmt = (
+            select(self._table)
+            .where(self._table.c.job_type == job_type)
+            .where(self._table.c.strategy_id == strategy_id)
+            .where(self._table.c.version == version)
+            .where(tags == idempotency_key)
+            .order_by(desc(self._table.c.time_start))
+            .limit(1)
+        )
+        row = self._fetch_one(stmt)
+        return cast(JobRunRow | None, row)

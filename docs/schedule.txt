@@ -7,5 +7,5 @@
 * 阶段 5：特征层实现并验算（FeatureService 产出 feature_daily/采样）（已完成）
 * 阶段 5a：决策信号层实现（SignalService 产出“调仓决策快照”）（已完成）
 * 阶段 6：组合权重层实现并验算（PortfolioService 产出 portfolio_weight_weekly）（已完成）
-* 阶段 7：API 闭环对接（触发计算 + 查询权重/运行记录）
+* 阶段 7：API 闭环对接（触发计算 + 查询权重/运行记录）（已完成）
 * 阶段 8：CLI 与定时运行上线（cron/systemd 周期产出权重）

@@ -39,6 +39,7 @@ def build_metadata(schema: str | None) -> MetaData:
         Column("instrument_id", String(64), primary_key=True),
         Column("rebalance_date", Date, primary_key=True),
         Column("signal_name", String(64), primary_key=True),
+        Column("bucket_id", String(64), nullable=True),
         Column("value", Float, nullable=False),
         Column("meta_json", JSONB, nullable=True),
     )

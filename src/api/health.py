@@ -1,11 +1,27 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
-from fastapi.responses import PlainTextResponse
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Request
+
+from ..core.db import check_connection
+from .schemas import HealthResp
 
 router = APIRouter()
 
 
-@router.get("/health", response_class=PlainTextResponse)
-def health() -> str:
-    return "ok"
+@router.get("/health", response_model=HealthResp)
+def health(request: Request) -> HealthResp:
+    config = request.app.state.config
+    engine = request.app.state.engine
+    db_ok = True
+    try:
+        check_connection(engine)
+    except Exception:
+        db_ok = False
+    return HealthResp(
+        status="ok",
+        version=config.strategy.default_version,
+        time=datetime.now(timezone.utc),
+        db_ok=db_ok,
+    )

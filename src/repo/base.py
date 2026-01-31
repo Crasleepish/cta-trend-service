@@ -15,6 +15,12 @@ class BaseRepo:
             result = connection.execute(stmt)
             return [dict(row._mapping) for row in result]
 
+    def _fetch_one(self, stmt: Executable) -> dict[str, object] | None:
+        with self._engine.connect() as connection:
+            result = connection.execute(stmt)
+            row = result.first()
+            return dict(row._mapping) if row else None
+
     def _execute(self, stmt: Executable) -> int:
         with self._engine.begin() as connection:
             result = connection.execute(stmt)

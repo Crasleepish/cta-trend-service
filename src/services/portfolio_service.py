@@ -115,6 +115,7 @@ class PortfolioService:
             bucket_total=bucket_total,
             tilt_weights=tilt_weights,
             bucket_assets=bucket_assets,
+            run_id=run_id,
         )
 
         checks = {"weights_sum": sum(w["target_weight"] for w in weights)}
@@ -217,8 +218,7 @@ class PortfolioService:
             raise ValueError("missing tilt_weight signals")
         weights: dict[str, dict[str, float]] = {}
         for _, row in tilt_df.iterrows():
-            meta = row.get("meta_json") or {}
-            bucket_id = meta.get("bucket_id")
+            bucket_id = row.get("bucket_id")
             if not bucket_id:
                 raise ValueError("tilt_weight missing bucket_id")
             weights.setdefault(bucket_id, {})[row["instrument_id"]] = float(row["value"])
@@ -246,6 +246,7 @@ class PortfolioService:
         bucket_total: dict[str, float],
         tilt_weights: dict[str, dict[str, float]],
         bucket_assets: dict[str, list[str]],
+        run_id: str,
     ) -> list[WeightRow]:
         rows: list[WeightRow] = []
         for bucket, assets in bucket_assets.items():
@@ -260,7 +261,7 @@ class PortfolioService:
                         "instrument_id": asset,
                         "target_weight": bucket_weight * tilt_weights[bucket][asset],
                         "bucket": bucket,
-                        "meta_json": None,
+                        "meta_json": {"run_id": run_id},
                     }
                 )
         return rows

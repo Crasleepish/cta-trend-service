@@ -15,7 +15,14 @@
 
 ## 文件说明
 
-* `health.py`：`/health` 健康检查路由，返回 `ok`。
+* `health.py`：`/health` 健康检查路由，返回状态/版本/时间/DB 连通性。
+* `jobs.py`：`/jobs/*` 触发同步 job。
+* `weights.py`：`/weights*` 权重查询。
+* `runs.py`：`/runs*` 运行审计查询。
+* `signals.py`：`/signals*` 信号查询。
+* `schemas.py`：API 请求/响应模型。
+* `errors.py`：API 错误模型与异常映射。
+* `deps.py`：API 依赖构建（repos/services/job_runner）。
 * `__init__.py`：保持空，不放逻辑。
 
 ## 本模块约束/规范

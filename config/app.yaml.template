@@ -5,6 +5,11 @@ db:
   schema_in: "public"
   schema_out: "cta"
 
+strategy:
+  default_strategy_id: "cta_trend_v1"
+  default_version: "1.0.0"
+  default_portfolio_id: "main"
+
 logging:
   dir: "./logs"
   level: "INFO"
