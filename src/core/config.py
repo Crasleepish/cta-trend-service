@@ -57,12 +57,32 @@ class SignalConfig(BaseModel):
     tilt_temperature: float = 1.0
 
 
+class PortfolioConfig(BaseModel):
+    sigma_target: float = 0.1
+    risk_buckets: list[str] = Field(default_factory=lambda: ["VALUE", "GROWTH", "CYCLE", "GOLD"])
+    bucket_signal_names: list[str] = Field(
+        default_factory=lambda: [
+            "T",
+            "gate_state",
+            "sigma_eff",
+            "f_sigma",
+            "raw_weight_component_risk_budget",
+            "raw_weight_component_gate",
+            "raw_weight_component_trend",
+            "raw_weight_component_inv_sigma_eff",
+            "raw_weight_component_f_sigma",
+            "rate_pref",
+        ]
+    )
+
+
 class AppConfig(BaseModel):
     env: str = "dev"
     db: DbConfig
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
     signals: SignalConfig = Field(default_factory=SignalConfig)
+    portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
     bucket_reco: "BucketRecoConfig" = Field(default_factory=lambda: BucketRecoConfig())
 
 

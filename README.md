@@ -82,6 +82,9 @@ uv run python -m src.bucket_reco.runner \
 | `signals.tilt_scales` | Diagonal scaling per factor dimension. |
 | `signals.tilt_eps` | Epsilon guard for cosine stability. |
 | `signals.tilt_temperature` | Softmax temperature for tilt weights. |
+| `portfolio.sigma_target` | Volatility target cap for risk sleeve. |
+| `portfolio.risk_buckets` | Risk bucket names used for normalization and risk sleeve allocation. |
+| `portfolio.bucket_signal_names` | Required bucket-level signal names. |
 | `bucket_reco.proxy.weight_mode` | Proxy weight mode (`equal` or `inv_vol`). |
 | `bucket_reco.proxy.annualize` | Annualization factor for volatility (e.g., 252). |
 | `bucket_reco.proxy.clip_min` | Minimum weight clip for proxy weights (nullable). |

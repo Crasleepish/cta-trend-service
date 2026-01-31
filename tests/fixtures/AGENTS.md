@@ -21,4 +21,5 @@
 
 * CSV/YAML 必须排序固定（date 升序、ticker 升序）。
 * 数据规模小且可手算；不依赖真实 DB。
-* expected/ 用于 golden files，对齐列名/行数/主键。
+* expected/ 用于 golden files（features/weights 等），对齐列名/行数/主键。
+* golden/ 用于 signal_weekly / portfolio_weight_weekly 的稳定快照。

@@ -17,6 +17,7 @@
 |-- test_series_utils.py
 |-- test_signal_service.py
 |-- test_step1_score.py
+|-- test_portfolio_service.py
 |-- test_trend_consistency.py
 `-- test_trend_score.py
 ```

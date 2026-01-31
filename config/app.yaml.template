@@ -42,6 +42,21 @@ signals:
   tilt_eps: 1e-12
   tilt_temperature: 1.0
 
+portfolio:
+  sigma_target: 0.1
+  risk_buckets: ["VALUE", "GROWTH", "CYCLE", "GOLD"]
+  bucket_signal_names:
+    - "T"
+    - "gate_state"
+    - "sigma_eff"
+    - "f_sigma"
+    - "raw_weight_component_risk_budget"
+    - "raw_weight_component_gate"
+    - "raw_weight_component_trend"
+    - "raw_weight_component_inv_sigma_eff"
+    - "raw_weight_component_f_sigma"
+    - "rate_pref"
+
 bucket_reco:
   proxy:
     weight_mode: "inv_vol"

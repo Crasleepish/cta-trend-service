@@ -1,0 +1,5 @@
+rebalance_date,instrument_id,target_weight,bucket
+2026-01-16,A1,0.3,GROWTH
+2026-01-16,B1,0.2,GROWTH
+2026-01-16,C1,0.15000000000000002,CASH
+2026-01-16,R1,0.35,RATE

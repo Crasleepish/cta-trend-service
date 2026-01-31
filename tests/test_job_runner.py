@@ -121,19 +121,35 @@ class FakeSignalService:
 
 
 class FakePortfolioService:
-    def compute_weights(self, *args, **kwargs):
-        return [
-            {
-                "strategy_id": "cta_trend_v1",
-                "version": "1.0.0",
-                "portfolio_id": "main",
-                "rebalance_date": date(2026, 1, 1),
-                "instrument_id": "F1",
-                "target_weight": 1.0,
-                "bucket": "GROWTH",
-                "meta_json": None,
-            }
-        ]
+    def compute_and_persist_weights_from_signals(
+        self,
+        *,
+        run_id: str,
+        strategy_id: str,
+        version: str,
+        snapshot_id: str | None,
+        portfolio_id: str,
+        rebalance_date: date,
+        universe: dict[str, Any],
+        dry_run: bool,
+        force_recompute: bool,
+    ):
+        _ = (
+            run_id,
+            strategy_id,
+            version,
+            snapshot_id,
+            portfolio_id,
+            rebalance_date,
+            universe,
+            dry_run,
+            force_recompute,
+        )
+        return type(
+            "Summary",
+            (),
+            {"rows_upserted": 1},
+        )()
 
 
 def test_job_runner_run_full_success() -> None:

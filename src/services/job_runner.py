@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
 from ..repo.inputs import AuxRepo, BetaRepo, BucketRepo, FactorRepo, MarketRepo, NavRepo
-from ..repo.outputs import FeatureRepo, SignalRepo, WeightRepo, WeightRow
+from ..repo.outputs import FeatureRepo, SignalRepo, WeightRepo
 from .contracts import JobType, RunContext, RunRequest, RunResult, RunStatus
 from .feature_service import FeatureRunSummary, FeatureSetSpec
 from .run_audit_service import RunAuditService
@@ -46,13 +46,19 @@ class SignalService(Protocol):
 
 
 class PortfolioService(Protocol):
-    def compute_weights(
+    def compute_and_persist_weights_from_signals(
         self,
+        *,
+        run_id: str,
+        strategy_id: str,
+        version: str,
+        snapshot_id: str | None,
+        portfolio_id: str,
         rebalance_date: date,
         universe: dict[str, Any],
-        snapshot_id: str | None,
         dry_run: bool,
-    ) -> list[WeightRow]: ...
+        force_recompute: bool,
+    ) -> Any: ...
 
 
 Clock = Callable[[], datetime]
@@ -202,12 +208,18 @@ class JobRunner:
         }
         self.audit.update_inputs(ctx.run_id, input_range)
 
-        rows = self.portfolio_service.compute_weights(
-            req.rebalance_date, universe, ctx.snapshot_id, req.dry_run
+        summary = self.portfolio_service.compute_and_persist_weights_from_signals(
+            run_id=ctx.run_id,
+            strategy_id=ctx.strategy_id,
+            version=ctx.version,
+            snapshot_id=ctx.snapshot_id,
+            portfolio_id=universe.get("portfolio_id", "main"),
+            rebalance_date=req.rebalance_date,
+            universe=universe,
+            dry_run=req.dry_run,
+            force_recompute=req.force_recompute,
         )
-        rows_upserted = 0
-        if not req.dry_run:
-            rows_upserted = self.weight_repo.upsert_many(rows)
+        rows_upserted = summary.rows_upserted if hasattr(summary, "rows_upserted") else 0
 
         outputs = {
             "rows_upserted": {"portfolio_weight_weekly": rows_upserted},
@@ -271,12 +283,20 @@ class JobRunner:
         )
         step_outputs["signal"] = {"rows_upserted": signal_upsert}
 
-        weight_rows = self.portfolio_service.compute_weights(
-            req.rebalance_date, universe, ctx.snapshot_id, req.dry_run
+        weight_summary = self.portfolio_service.compute_and_persist_weights_from_signals(
+            run_id=ctx.run_id,
+            strategy_id=ctx.strategy_id,
+            version=ctx.version,
+            snapshot_id=ctx.snapshot_id,
+            portfolio_id=universe.get("portfolio_id", "main"),
+            rebalance_date=req.rebalance_date,
+            universe=universe,
+            dry_run=req.dry_run,
+            force_recompute=req.force_recompute,
         )
-        weight_upsert = 0
-        if not req.dry_run:
-            weight_upsert = self.weight_repo.upsert_many(weight_rows)
+        weight_upsert = (
+            weight_summary.rows_upserted if hasattr(weight_summary, "rows_upserted") else 0
+        )
         step_outputs["portfolio"] = {"rows_upserted": weight_upsert}
 
         outputs = {

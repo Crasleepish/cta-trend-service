@@ -213,7 +213,7 @@ class SignalService:
         exposures = beta_df.set_index("code")[factors].astype(float)
 
         for bucket_id, assets in bucket_assets.items():
-            if bucket_id == "RATE":
+            if bucket_id in {"RATE", "CASH"}:
                 for asset in assets:
                     tilt_rows.extend(
                         self._tilt_rows(

@@ -94,24 +94,35 @@ class MockSignalService:
 
 @dataclass
 class MockPortfolioService:
-    def compute_weights(
-        self, rebalance_date: date, universe: dict[str, Any], snapshot_id: str | None, dry_run: bool
-    ) -> list[dict[str, Any]]:
-        instruments = list(universe["instrument_ids"])
-        weight = 1.0 / len(instruments)
-        return [
-            {
-                "strategy_id": "s1",
-                "version": "v1",
-                "portfolio_id": universe["portfolio_id"],
-                "rebalance_date": rebalance_date,
-                "instrument_id": inst,
-                "target_weight": weight,
-                "bucket": "RISK",
-                "meta_json": None,
-            }
-            for inst in instruments
-        ]
+    def compute_and_persist_weights_from_signals(
+        self,
+        *,
+        run_id: str,
+        strategy_id: str,
+        version: str,
+        snapshot_id: str | None,
+        portfolio_id: str,
+        rebalance_date: date,
+        universe: dict[str, Any],
+        dry_run: bool,
+        force_recompute: bool,
+    ):
+        _ = (
+            run_id,
+            strategy_id,
+            version,
+            snapshot_id,
+            portfolio_id,
+            rebalance_date,
+            universe,
+            dry_run,
+            force_recompute,
+        )
+        return type(
+            "Summary",
+            (),
+            {"rows_upserted": len(universe["instrument_ids"])},
+        )()
 
 
 def _hash_rows(*repos: FakeUpsertRepo) -> str:

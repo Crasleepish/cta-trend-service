@@ -208,6 +208,27 @@ class SignalRepo(BaseRepo):
         stmt = _upsert_statement(self._table, rows)
         return self._execute_many(stmt, rows)
 
+    def get_range(
+        self,
+        *,
+        strategy_id: str,
+        version: str,
+        rebalance_date: date,
+        instrument_ids: Sequence[str] | None = None,
+        signal_names: Sequence[str] | None = None,
+    ) -> list[SignalRow]:
+        stmt = (
+            select(self._table)
+            .where(self._table.c.strategy_id == strategy_id)
+            .where(self._table.c.version == version)
+            .where(self._table.c.rebalance_date == rebalance_date)
+        )
+        if instrument_ids:
+            stmt = stmt.where(self._table.c.instrument_id.in_(instrument_ids))
+        if signal_names:
+            stmt = stmt.where(self._table.c.signal_name.in_(signal_names))
+        return cast(list[SignalRow], self._fetch_all(stmt))
+
 
 class WeightRepo(BaseRepo):
     def __init__(self, engine: Engine, schema: str | None = "cta") -> None:
