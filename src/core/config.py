@@ -82,6 +82,16 @@ class StrategyConfig(BaseModel):
     default_portfolio_id: str = "main"
 
 
+class BacktestSettings(BaseModel):
+    output_dir: str = "docs/backtests"
+    buy_fee: float = 0.0005
+    sell_fee: float = 0.0005
+    slippage: float = 0.0002
+    init_cash: float = 1_000_000.0
+    cash_sharing: bool = True
+    freq: str = "D"
+
+
 class AppConfig(BaseModel):
     env: str = "dev"
     db: DbConfig
@@ -91,6 +101,7 @@ class AppConfig(BaseModel):
     signals: SignalConfig = Field(default_factory=SignalConfig)
     portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
     bucket_reco: "BucketRecoConfig" = Field(default_factory=lambda: BucketRecoConfig())
+    backtest: BacktestSettings = Field(default_factory=BacktestSettings)
 
 
 class BucketRecoProxyConfig(BaseModel):

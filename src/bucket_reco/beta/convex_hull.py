@@ -6,6 +6,7 @@ from math import pi
 from typing import List, Optional, Tuple
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy.optimize import linprog
 
 H_MIN = 1e-12
@@ -15,11 +16,15 @@ def sphere_area(dim: int) -> float:
     return float(2.0 * (pi ** (dim / 2.0)) / gamma_func(dim / 2.0))
 
 
-def sample_sphere_uniform(dim: int, M: int, rng: np.random.Generator) -> np.ndarray:
-    G = rng.normal(size=(M, dim))
+def sample_sphere_uniform(
+    dim: int,
+    M: int,
+    rng: np.random.Generator,
+) -> NDArray[np.float64]:
+    G: NDArray[np.float64] = rng.normal(size=(M, dim))
     norms = np.linalg.norm(G, axis=1, keepdims=True)
     norms = np.where(norms == 0.0, 1.0, norms)
-    return G / norms
+    return np.asarray(G / norms, dtype=np.float64)
 
 
 def dual_lp_support_theta(

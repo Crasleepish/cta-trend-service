@@ -5,6 +5,7 @@ import logging
 import uvicorn
 from fastapi import FastAPI
 
+from .api.backtests import router as backtests_router
 from .api.errors import ApiErrorException, error_response
 from .api.health import router as health_router
 from .api.jobs import router as jobs_router
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(weights_router)
     app.include_router(runs_router)
     app.include_router(signals_router)
+    app.include_router(backtests_router)
 
     app.add_exception_handler(ApiErrorException, error_response)
 

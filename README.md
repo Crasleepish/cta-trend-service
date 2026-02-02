@@ -128,3 +128,29 @@ Note: defensive buckets are fixed to `RATE` and `CASH` in code; only `portfolio.
 | `bucket_reco.convex_hull.clip_viol` | Clip for violation values (nullable). |
 | `bucket_reco.convex_hull.diversity_beta` | Diversity weighting exponent. |
 | `bucket_reco.convex_hull.nms_cos_thresh` | Cosine threshold for NMS (nullable). |
+| `backtest.output_dir` | Output directory for backtest artifacts. |
+| `backtest.buy_fee` | Buy fee rate used by backtest engine. |
+| `backtest.sell_fee` | Sell fee rate used by backtest engine. |
+| `backtest.slippage` | Slippage rate used by backtest engine. |
+| `backtest.init_cash` | Initial cash for backtest engine. |
+| `backtest.cash_sharing` | Whether cash is shared across assets. |
+| `backtest.freq` | Frequency string passed to stats (e.g., D). |
+
+## backtest
+
+Backtest task that consumes historical weights and NAV data to generate
+weights-by-date CSV, NAV/returns CSV, equity curve HTML, and a summary report.
+Configuration lives under `backtest.*` in `config/app.yaml` and can be overridden
+via CLI flags.
+
+Example:
+
+```bash
+uv run python -m src.backtest.runner \
+  --start-date 2019-01-01 \
+  --end-date 2019-06-30 \
+  --strategy-id cta_trend_v1 \
+  --version 1.0.0 \
+  --portfolio-id main \
+  --output-dir docs/backtests
+```

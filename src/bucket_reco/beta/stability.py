@@ -6,6 +6,7 @@ from typing import Sequence
 
 import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 from sqlalchemy import Column, Date, Float, LargeBinary, MetaData, String, Table, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql import func
@@ -36,19 +37,19 @@ def fetch_beta_rows(
     return _fetch_from_db(engine, schema, codes, t0)
 
 
-def decode_cov(P_bin: bytes, *, strict: bool = True) -> np.ndarray:
+def decode_cov(P_bin: bytes, *, strict: bool = True) -> NDArray[np.float64]:
     expected_len = 21 * 4
     if len(P_bin) != expected_len:
         if strict:
             raise ValueError("P_bin length invalid")
-        return np.full((6, 6), np.nan)
+        return np.full((6, 6), np.nan, dtype=np.float64)
     data = np.frombuffer(P_bin, dtype=np.float32)
     if data.size != 21:
         if strict:
             raise ValueError("P_bin decode invalid")
-        return np.full((6, 6), np.nan)
+        return np.full((6, 6), np.nan, dtype=np.float64)
 
-    cov = np.zeros((6, 6), dtype=float)
+    cov: NDArray[np.float64] = np.zeros((6, 6), dtype=np.float64)
     idx = 0
     for i in range(6):
         for j in range(i + 1):

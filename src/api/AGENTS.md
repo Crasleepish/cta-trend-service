@@ -10,7 +10,15 @@
 ```
 .
 |-- __init__.py
-`-- health.py
+|-- backtests.py
+|-- deps.py
+|-- errors.py
+|-- health.py
+|-- jobs.py
+|-- runs.py
+|-- schemas.py
+|-- signals.py
+`-- weights.py
 ```
 
 ## 文件说明
@@ -20,6 +28,7 @@
 * `weights.py`：`/weights*` 权重查询。
 * `runs.py`：`/runs*` 运行审计查询。
 * `signals.py`：`/signals*` 信号查询。
+* `backtests.py`：`/backtests/run` 回测任务入口。
 * `schemas.py`：API 请求/响应模型。
 * `errors.py`：API 错误模型与异常映射。
 * `deps.py`：API 依赖构建（repos/services/job_runner）。

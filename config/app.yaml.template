@@ -108,3 +108,12 @@ bucket_reco:
     clip_viol: null
     diversity_beta: 1.5
     nms_cos_thresh: 0.98
+
+backtest:
+  output_dir: "docs/backtests"
+  buy_fee: 0.0005
+  sell_fee: 0.0005
+  slippage: 0.0002
+  init_cash: 1000000.0
+  cash_sharing: true
+  freq: "D"

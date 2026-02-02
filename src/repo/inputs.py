@@ -261,6 +261,7 @@ class BetaRepo(BaseRepo):
 
 class AuxRepo(BaseRepo):
     _gold_code: str = "Au99.99.SGE"
+    _usd_index_code: str = "USDX"
 
     def __init__(self, engine: Engine, schema: str | None = "public") -> None:
         super().__init__(engine)
@@ -280,6 +281,14 @@ class AuxRepo(BaseRepo):
         if order_by_date:
             stmt = stmt.order_by(self._index_table.c.date.asc())
         return cast(list[AuxGoldRow], self._fetch_all(stmt))
+
+    def get_usd_index_range(
+        self,
+        start_date: date,
+        end_date: date,
+        order_by_date: bool = True,
+    ) -> list[dict[str, object]]:
+        return []
 
 
 class TradeCalendarRepo(BaseRepo):
@@ -308,11 +317,3 @@ class TradeCalendarRepo(BaseRepo):
         if not rows or len(rows) < days:
             raise ValueError("not enough trading days before anchor")
         return cast(date, rows[-1]["date"])
-
-    def get_usd_index_range(
-        self,
-        start_date: date,
-        end_date: date,
-        order_by_date: bool = True,
-    ) -> list[dict[str, object]]:
-        return []

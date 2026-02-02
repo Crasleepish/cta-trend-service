@@ -21,6 +21,8 @@ dependencies = [
   "types-PyYAML>=6.0",
   "SQLAlchemy>=2.0",
   "uvicorn>=0.29",
+  "numba>=0.59",
+  "vectorbt>=0.25",
 ]
 
 [project.scripts]

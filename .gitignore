@@ -10,6 +10,8 @@ __pycache__/
 .ruff_cache/
 
 logs/
+.vbt/
+docs/backtests/
 config/app.yaml
 
 .env
@@ -20,3 +22,6 @@ docs/test_report.md
 docs/weights_weekly_*.csv
 docs/io_timings_*.csv
 docs/bucket_backup_*.csv
+
+# vectorbt cache
+.vbt/

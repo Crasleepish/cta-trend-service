@@ -199,44 +199,71 @@
 - `instrument_id`（可选）
 - `signal_name_prefix`（可选，例：`raw_weight_component_`）
 
-**Response 200**
+---
+
+## 7. Backtests
+
+### POST `/backtests/run`
+
+Run a backtest over a natural date range and write outputs to disk.
+
+**Request**
 ```json
 {
-  "rebalance_date": "2026-01-16",
-  "signals": [
-    {
-      "instrument_id": "GROWTH",
-      "signal_name": "T",
-      "value": 0.8,
-      "bucket_id": "GROWTH",
-      "meta_json": null
-    }
-  ]
+  "start_date": "2019-01-01",
+  "end_date": "2019-06-30",
+  "strategy_id": "cta_trend_v1",
+  "version": "1.0.0",
+  "portfolio_id": "main",
+  "output_dir": "docs/backtests",
+  "buy_fee": 0.0005,
+  "sell_fee": 0.0005,
+  "slippage": 0.0002,
+  "init_cash": 1000000.0,
+  "cash_sharing": true,
+  "freq": "D"
 }
 ```
 
-### GET `/signals/latest`
-
-同 `/signals`，但自动选择最新 `rebalance_date`。
+**Response**
+```json
+{
+  "weights_csv": "docs/backtests/weights_2019-01-01_2019-06-30.csv",
+  "nav_returns_csv": "docs/backtests/nav_returns_2019-01-01_2019-06-30.csv",
+  "equity_curve_html": "docs/backtests/equity_curve_2019-01-01_2019-06-30.html",
+  "report_md": "docs/backtests/report_2019-01-01_2019-06-30.md",
+  "warnings": [],
+  "stats": {
+    "max_drawdown": -0.21,
+    "sharpe_ratio": 0.9,
+    "annual_return": 0.12,
+    "calmar_ratio": 0.6,
+    "max_recovery_time": 120,
+    "annual_volatility": 0.15,
+    "ulcer_index": 0.08
+  }
+}
+```
 
 ---
 
-## 7. 错误码
+## 8. 错误码约定
 
-```json
-{
-  "code": "SIGNAL_INCOMPLETE",
-  "message": "missing tilt_weight signals",
-  "details": null
-}
+- `INPUT_COVERAGE_MISSING`：输入表日期覆盖不足
+- `SIGNAL_INCOMPLETE`：signal_weekly 缺必备 signal_name
+- `TILT_INVALID`：倾斜层 tilt_weight 不完备或归一化失败
+- `WEIGHTS_SANITY_FAIL`：权重和不为 1、出现 NaN/负权重等
+- `RUN_NOT_FOUND` / `WEIGHTS_NOT_FOUND`
+- `DB_ERROR`：数据库错误（尽量只在 500 返回）
+
+## CLI
+
+```bash
+uv run python -m src.backtest.runner \
+  --start-date 2019-01-01 \
+  --end-date 2019-06-30 \
+  --strategy-id cta_trend_v1 \
+  --version 1.0.0 \
+  --portfolio-id main \
+  --output-dir docs/backtests
 ```
-
-| code | 含义 |
-|---|---|
-| `INPUT_COVERAGE_MISSING` | 输入覆盖不足 |
-| `SIGNAL_INCOMPLETE` | 信号不完备 |
-| `TILT_INVALID` | 倾斜层失败 |
-| `WEIGHTS_SANITY_FAIL` | 权重校验失败 |
-| `WEIGHTS_NOT_FOUND` | 权重不存在 |
-| `RUN_NOT_FOUND` | run_id 不存在 |
-| `DB_ERROR` | 数据库错误 |

@@ -122,3 +122,27 @@ class RunDetailResp(BaseModel):
     input_range: dict[str, Any] | None
     output_summary: dict[str, Any] | None
     error_stack: str | None = None
+
+
+class BacktestRequestBody(BaseModel):
+    start_date: date
+    end_date: date
+    strategy_id: str | None = None
+    version: str | None = None
+    portfolio_id: str | None = None
+    output_dir: str | None = None
+    buy_fee: float | None = None
+    sell_fee: float | None = None
+    slippage: float | None = None
+    init_cash: float | None = None
+    cash_sharing: bool | None = None
+    freq: str | None = None
+
+
+class BacktestResponse(BaseModel):
+    weights_csv: str
+    nav_returns_csv: str
+    equity_curve_html: str
+    report_md: str
+    warnings: list[str]
+    stats: dict[str, float | None]

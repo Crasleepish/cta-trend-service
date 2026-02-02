@@ -89,6 +89,7 @@ All behavior must be callable and testable.
 |   |-- repo/                   # DB access (read/write)
 |   |-- services/               # sync orchestration + audit
 |   |-- bucket_reco/            # BucketTradableAssets tool modules
+|   |-- backtest/               # backtest engine + runner
 |   `-- utils/                  # shared pure utilities
 |-- tests/                      # unit/integration tests
 |-- migrations/                 # Alembic migrations

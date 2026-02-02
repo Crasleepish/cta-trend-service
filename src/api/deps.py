@@ -16,6 +16,7 @@ from ..repo.inputs import (
     TradeCalendarRepo,
 )
 from ..repo.outputs import FeatureRepo, FeatureWeeklySampleRepo, RunRepo, SignalRepo, WeightRepo
+from ..services.backtest_service import BacktestService
 from ..services.feature_service import FeatureService
 from ..services.job_runner import JobRunner
 from ..services.portfolio_service import PortfolioService
@@ -85,4 +86,12 @@ def build_job_runner(config: AppConfig, engine: Engine) -> JobRunner:
         feature_service=feature_service,
         signal_service=signal_service,
         portfolio_service=portfolio_service,
+    )
+
+
+def build_backtest_service(config: AppConfig, engine: Engine) -> BacktestService:
+    return BacktestService(
+        weight_repo=WeightRepo(engine, schema=config.db.schema_out),
+        nav_repo=NavRepo(engine, schema=config.db.schema_in),
+        calendar_repo=TradeCalendarRepo(engine, schema=config.db.schema_in),
     )
