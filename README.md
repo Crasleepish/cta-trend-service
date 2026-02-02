@@ -154,3 +154,10 @@ uv run python -m src.backtest.runner \
   --portfolio-id main \
   --output-dir docs/backtests
 ```
+
+Outputs:
+
+- `weights_YYYY-MM-DD_YYYY-MM-DD.csv` (rebalance_date × instrument weights)
+- `nav_returns_YYYY-MM-DD_YYYY-MM-DD.csv` (daily NAV & returns)
+- `equity_curve_YYYY-MM-DD_YYYY-MM-DD.html` (interactive curve)
+- `report_YYYY-MM-DD_YYYY-MM-DD.md` (summary metrics)
