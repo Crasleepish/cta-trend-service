@@ -10,12 +10,14 @@
 ```
 .
 |-- __init__.py
-`-- series.py
+|-- series.py
+`-- trading_calendar.py
 ```
 
 ## 文件说明
 
 * `series.py`：序列对齐、对数收益、指数重构的纯函数工具。
+* `trading_calendar.py`：交易日历工具（区间、偏移、周末采样）。
 * `__init__.py`：保持空，不放逻辑。
 
 ## 本模块约束/规范

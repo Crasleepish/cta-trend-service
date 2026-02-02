@@ -1,15 +1,26 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
-from ..repo.inputs import AuxRepo, BetaRepo, BucketRepo, FactorRepo, MarketRepo, NavRepo
+from ..repo.inputs import (
+    AuxRepo,
+    BetaRepo,
+    BucketRepo,
+    FactorRepo,
+    MarketRepo,
+    NavRepo,
+    TradeCalendarRepo,
+)
 from ..repo.outputs import FeatureRepo, SignalRepo, WeightRepo
 from .contracts import JobType, RunContext, RunRequest, RunResult, RunStatus
 from .feature_service import FeatureRunSummary, FeatureSetSpec
 from .run_audit_service import RunAuditService
 from .signal_service import SignalRunSummary
+
+logger = logging.getLogger(__name__)
 
 
 class FeatureService(Protocol):
@@ -73,6 +84,7 @@ class JobRunner:
     nav_repo: NavRepo
     beta_repo: BetaRepo
     aux_repo: AuxRepo
+    calendar_repo: TradeCalendarRepo
     feature_repo: FeatureRepo
     signal_repo: SignalRepo
     weight_repo: WeightRepo
@@ -328,7 +340,8 @@ class JobRunner:
             return req.calc_start, calc_end
         if req.lookback and "market_days" in req.lookback:
             days = int(req.lookback["market_days"])
-            return calc_end - timedelta(days=days), calc_end
+            calc_start = self.calendar_repo.get_nth_before(calc_end, days)
+            return calc_start, calc_end
         raise ValueError("calc_start or lookback.market_days must be provided")
 
     def _resolve_universe(self, req: RunRequest) -> dict[str, Any]:
@@ -367,6 +380,16 @@ class JobRunner:
         nav_rows = self.nav_repo.get_range(instruments, calc_start, calc_end)
         beta_rows = self.beta_repo.get_range(instruments, calc_start, calc_end)
         gold_rows = self.aux_repo.get_gold_range(calc_start, calc_end)
+        if instruments:
+            present = {row["fund_code"] for row in nav_rows if row.get("fund_code")}
+            missing = [code for code in instruments if code not in present]
+            if missing:
+                sample = missing[:10]
+                logger.warning(
+                    "nav.missing count=%s sample=%s",
+                    len(missing),
+                    sample,
+                )
 
         return {
             "market": self._coverage(market_rows, "date"),

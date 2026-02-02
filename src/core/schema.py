@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Column, Date, DateTime, Float, MetaData, String, Table, Text
+from sqlalchemy import BigInteger, Column, Date, DateTime, Float, MetaData, String, Table, Text
 from sqlalchemy.dialects.postgresql import JSONB
 
 
@@ -29,6 +29,16 @@ def build_metadata(schema: str | None) -> MetaData:
         Column("feature_name", String(64), primary_key=True),
         Column("value", Float, nullable=False),
         Column("meta_json", JSONB, nullable=True),
+    )
+
+    Table(
+        "bucket",
+        metadata,
+        Column("id", BigInteger, primary_key=True),
+        Column("bucket_name", String(64), nullable=False),
+        Column("assets", Text, nullable=False),
+        Column("bucket_proxy", String(64), nullable=True),
+        Column("bucket_proxy_name", String(128), nullable=True),
     )
 
     Table(

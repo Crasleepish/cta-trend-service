@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from docker.errors import DockerException
 from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
@@ -14,8 +15,11 @@ if str(ROOT) not in sys.path:
 
 @pytest.fixture(scope="session")
 def pg_container() -> PostgresContainer:
-    container = PostgresContainer("postgres:17")
-    container.start()
+    try:
+        container = PostgresContainer("postgres:17")
+        container.start()
+    except (DockerException, PermissionError, OSError) as exc:
+        pytest.skip(f"docker not available for testcontainers: {exc}")
     try:
         yield container
     finally:

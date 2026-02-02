@@ -6,7 +6,15 @@ from fastapi import Request
 from sqlalchemy.engine import Engine
 
 from ..core.config import AppConfig
-from ..repo.inputs import AuxRepo, BetaRepo, BucketRepo, FactorRepo, MarketRepo, NavRepo
+from ..repo.inputs import (
+    AuxRepo,
+    BetaRepo,
+    BucketRepo,
+    FactorRepo,
+    MarketRepo,
+    NavRepo,
+    TradeCalendarRepo,
+)
 from ..repo.outputs import FeatureRepo, FeatureWeeklySampleRepo, RunRepo, SignalRepo, WeightRepo
 from ..services.feature_service import FeatureService
 from ..services.job_runner import JobRunner
@@ -30,6 +38,7 @@ def build_job_runner(config: AppConfig, engine: Engine) -> JobRunner:
     nav_repo = NavRepo(engine, schema=config.db.schema_in)
     beta_repo = BetaRepo(engine, schema=config.db.schema_in)
     aux_repo = AuxRepo(engine, schema=config.db.schema_in)
+    calendar_repo = TradeCalendarRepo(engine, schema=config.db.schema_in)
 
     feature_repo = FeatureRepo(engine, schema=config.db.schema_out)
     feature_weekly_repo = FeatureWeeklySampleRepo(engine, schema=config.db.schema_out)
@@ -40,6 +49,7 @@ def build_job_runner(config: AppConfig, engine: Engine) -> JobRunner:
     feature_service = FeatureService(
         bucket_repo=bucket_repo,
         market_repo=market_repo,
+        calendar_repo=calendar_repo,
         feature_repo=feature_repo,
         feature_weekly_repo=feature_weekly_repo,
         config=config.features,
@@ -68,6 +78,7 @@ def build_job_runner(config: AppConfig, engine: Engine) -> JobRunner:
         nav_repo=nav_repo,
         beta_repo=beta_repo,
         aux_repo=aux_repo,
+        calendar_repo=calendar_repo,
         feature_repo=feature_repo,
         signal_repo=signal_repo,
         weight_repo=weight_repo,

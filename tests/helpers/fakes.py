@@ -44,6 +44,10 @@ class FakeDateRepo:
     def get_range(self, *_args, **_kwargs) -> list[Mapping[str, Any]]:
         return [{"date": d} for d in self.dates]
 
+    def get_nth_before(self, anchor: date, days: int) -> date:
+        _ = (anchor, days)
+        return min(self.dates)
+
 
 @dataclass
 class FakeAuxRepo:

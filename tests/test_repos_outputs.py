@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from unittest.mock import MagicMock
 
 from sqlalchemy.dialects import postgresql
@@ -10,20 +10,7 @@ from src.repo.outputs import JobRunRow, RunRepo, WeightRepo, _feature_table, _up
 
 def test_upsert_statement_contains_on_conflict() -> None:
     table = _feature_table(schema="cta")
-    stmt = _upsert_statement(
-        table,
-        [
-            {
-                "strategy_id": "s",
-                "version": "1",
-                "instrument_id": "i",
-                "calc_date": date(2026, 1, 1),
-                "feature_name": "f",
-                "value": 1.0,
-                "meta_json": None,
-            }
-        ],
-    )
+    stmt = _upsert_statement(table)
     compiled = str(stmt.compile(dialect=postgresql.dialect()))
     assert "ON CONFLICT" in compiled
     assert "strategy_id" in compiled

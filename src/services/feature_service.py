@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Iterable, Mapping
@@ -9,8 +11,11 @@ import pandas as pd
 from ..core.config import FeatureConfig
 from ..features import computer, sampler
 from ..features.registry import FeatureRegistry, FeatureSpec
-from ..repo.inputs import BucketRepo, MarketRepo
+from ..repo.inputs import BucketRepo, MarketRepo, TradeCalendarRepo
 from ..repo.outputs import FeatureRepo, FeatureRow, FeatureWeeklySampleRepo, FeatureWeeklySampleRow
+from ..utils.trading_calendar import TradingCalendar
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -34,6 +39,7 @@ class FeatureRunSummary:
 class FeatureService:
     bucket_repo: BucketRepo
     market_repo: MarketRepo
+    calendar_repo: TradeCalendarRepo
     feature_repo: FeatureRepo
     feature_weekly_repo: FeatureWeeklySampleRepo
     config: FeatureConfig
@@ -90,6 +96,7 @@ class FeatureService:
         dry_run: bool,
         force_recompute: bool,
     ) -> FeatureRunSummary:
+        t0 = time.perf_counter()
         summary, daily_rows, weekly_rows = self._compute_features(
             run_id=run_id,
             strategy_id=strategy_id,
@@ -101,12 +108,37 @@ class FeatureService:
             universe=universe,
             feature_set=feature_set or FeatureSetSpec([], {}),
         )
+        logger.info(
+            "feature.compute run_id=%s rebalance_date=%s elapsed=%.3fs "
+            "rows_daily=%s rows_weekly=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t0,
+            len(daily_rows),
+            len(weekly_rows),
+        )
 
         if dry_run:
             return summary
 
+        t1 = time.perf_counter()
         daily_count = self.feature_repo.upsert_many(daily_rows) if daily_rows else 0
+        logger.info(
+            "feature.upsert_daily run_id=%s rebalance_date=%s elapsed=%.3fs rows=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t1,
+            daily_count,
+        )
+        t2 = time.perf_counter()
         weekly_count = self.feature_weekly_repo.upsert_many(weekly_rows) if weekly_rows else 0
+        logger.info(
+            "feature.upsert_weekly run_id=%s rebalance_date=%s elapsed=%.3fs rows=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t2,
+            weekly_count,
+        )
         return FeatureRunSummary(
             calc_date_range=summary.calc_date_range,
             instruments_count=summary.instruments_count,
@@ -136,8 +168,16 @@ class FeatureService:
         if unknown:
             raise ValueError(f"unknown features: {', '.join(unknown)}")
 
+        t0 = time.perf_counter()
         buckets = self.bucket_repo.get_range(
             [int(b) for b in universe.get("bucket_ids", [])] or None
+        )
+        logger.info(
+            "feature.io bucket_repo.get_range run_id=%s rebalance_date=%s elapsed=%.3fs buckets=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t0,
+            len(buckets),
         )
         if not buckets:
             raise ValueError("bucket universe is empty")
@@ -150,12 +190,26 @@ class FeatureService:
         if not proxy_codes:
             raise ValueError("no bucket proxies available")
 
+        t1 = time.perf_counter()
         rows = self.market_repo.get_range(proxy_codes, calc_start, calc_end)
+        logger.info(
+            "feature.io market_repo.get_range run_id=%s rebalance_date=%s elapsed=%.3fs rows=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t1,
+            len(rows),
+        )
         if not rows:
             raise ValueError("no proxy price data available")
 
-        prices = self._build_prices(rows, bucket_proxies)
-        coverage = self._coverage(prices, calc_start, calc_end)
+        calendar_rows = self.calendar_repo.get_range(calc_start, calc_end)
+        if not calendar_rows:
+            raise ValueError("trade_calendar is empty for calc range")
+        calendar = TradingCalendar.from_dates(row["date"] for row in calendar_rows)
+
+        price_series = self._build_price_series(rows, bucket_proxies, calendar=calendar)
+        prices = pd.concat(price_series.values(), axis=1)
+        coverage = self._coverage(price_series, calc_start, calc_end)
 
         params = self._params_dict()
         params.update(feature_set.feature_params)
@@ -174,14 +228,30 @@ class FeatureService:
         rate_k = float(params["rate_k"])
         theta_rate = float(params["theta_rate"])
 
-        returns = computer.log_returns(prices)
-        sigma_ann = computer.sigma_annualized(returns, window=vol_window, annualize=annualize)
-        trend = computer.trend_strength(
-            prices,
-            sigma_ann,
-            short_window=short_window,
-            long_window=long_window,
-        )
+        returns_map = {
+            name: computer.log_returns(series.to_frame(name))[name]
+            for name, series in price_series.items()
+        }
+        sigma_map = {
+            name: computer.sigma_annualized(
+                returns_map[name].to_frame(name),
+                window=vol_window,
+                annualize=annualize,
+            )[name]
+            for name in returns_map
+        }
+        trend_map = {
+            name: computer.trend_strength(
+                price_series[name].to_frame(name),
+                sigma_map[name].to_frame(name),
+                short_window=short_window,
+                long_window=long_window,
+            )[name]
+            for name in price_series
+        }
+        returns = pd.concat(returns_map, axis=1)
+        sigma_ann = pd.concat(sigma_map, axis=1)
+        trend = pd.concat(trend_map, axis=1)
 
         daily_frames: dict[str, pd.DataFrame] = {
             "r_log_daily": returns,
@@ -189,8 +259,12 @@ class FeatureService:
             "T": trend,
         }
 
-        weekly_history = sampler.weekly_history(trend, rebalance_date=rebalance_date)
-        weekly_sigma = sampler.weekly_history(sigma_ann, rebalance_date=rebalance_date)
+        weekly_history = sampler.weekly_history(
+            trend, calendar=calendar.dates, rebalance_date=rebalance_date
+        )
+        weekly_sigma = sampler.weekly_history(
+            sigma_ann, calendar=calendar.dates, rebalance_date=rebalance_date
+        )
 
         gate_state = computer.hysteresis_gate(
             weekly_history,
@@ -202,6 +276,7 @@ class FeatureService:
         f_sigma = computer.tradability_filter(weekly_sigma, sigma_max=sigma_max, kappa=kappa_sigma)
 
         weekly_frames: dict[str, pd.DataFrame] = {
+            "T": weekly_history,
             "sigma_eff": sigma_eff,
             "f_sigma": f_sigma,
             "gate_state": gate_state,
@@ -271,12 +346,14 @@ class FeatureService:
             "theta_rate": float(self.config.theta_rate),
         }
 
-    def _build_prices(
+    def _build_price_series(
         self,
         rows: Iterable[Mapping[str, Any]],
         bucket_proxies: Mapping[str, str | None],
-    ) -> pd.DataFrame:
-        frames = []
+        *,
+        calendar: TradingCalendar,
+    ) -> dict[str, pd.Series]:
+        frames: dict[str, pd.Series] = {}
         for bucket, proxy in bucket_proxies.items():
             if not proxy:
                 continue
@@ -290,25 +367,32 @@ class FeatureService:
                 .sort_index()
                 .rename(bucket)
             )
-            frames.append(series)
+            frames[bucket] = series.reindex(calendar.dates)
         if not frames:
             raise ValueError("no proxy series available")
-        return pd.concat(frames, axis=1)
+        return frames
 
     def _coverage(
         self,
-        prices: pd.DataFrame,
+        series_map: Mapping[str, pd.Series],
         start_date: date,
         end_date: date,
     ) -> dict[str, dict[str, Any]]:
         coverage: dict[str, dict[str, Any]] = {}
-        for col in prices.columns:
-            series = prices[col].dropna()
+        for col, series in series_map.items():
+            series = series.dropna()
             if series.empty:
                 raise ValueError(f"missing price coverage for {col}")
+            window = series.loc[
+                (series.index >= pd.Timestamp(start_date))
+                & (series.index <= pd.Timestamp(end_date))
+            ]
+            if window.empty:
+                raise ValueError(f"missing price coverage for {col}")
+            first_trade_date = window.index.min().date()
             min_date = series.index.min().date()
             max_date = series.index.max().date()
-            if min_date > start_date or max_date < end_date:
+            if min_date > first_trade_date or max_date < end_date:
                 raise ValueError(f"insufficient price coverage for {col}")
             coverage[col] = {
                 "count": int(series.shape[0]),

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, ClassVar
@@ -10,6 +12,8 @@ import pandas as pd
 from ..core.config import PortfolioConfig
 from ..repo.inputs import BucketRepo
 from ..repo.outputs import SignalRepo, WeightRepo, WeightRow
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -43,8 +47,17 @@ class PortfolioService:
         force_recompute: bool,
     ) -> PortfolioRunSummary:
         _ = (run_id, snapshot_id, force_recompute)
+        t0 = time.perf_counter()
         buckets = self.bucket_repo.get_range(
             [int(b) for b in universe.get("bucket_ids", [])] or None
+        )
+        logger.info(
+            "portfolio.io bucket_repo.get_range run_id=%s rebalance_date=%s elapsed=%.3fs "
+            "buckets=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t0,
+            len(buckets),
         )
         if not buckets:
             raise ValueError("bucket universe is empty")
@@ -55,10 +68,18 @@ class PortfolioService:
             bucket_assets[bucket["bucket_name"]] = assets
 
         bucket_names = sorted(bucket_assets.keys())
+        t1 = time.perf_counter()
         signals = self.signal_repo.get_range(
             strategy_id=strategy_id,
             version=version,
             rebalance_date=rebalance_date,
+        )
+        logger.info(
+            "portfolio.io signal_repo.get_range run_id=%s rebalance_date=%s elapsed=%.3fs rows=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t1,
+            len(signals),
         )
         if not signals:
             raise ValueError("signal_weekly is empty")
@@ -130,7 +151,15 @@ class PortfolioService:
                 warnings=[],
             )
 
+        t2 = time.perf_counter()
         rows_upserted = self.weight_repo.upsert_many(weights)
+        logger.info(
+            "portfolio.upsert run_id=%s rebalance_date=%s elapsed=%.3fs rows=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t2,
+            rows_upserted,
+        )
         return PortfolioRunSummary(
             rebalance_date=rebalance_date,
             rows_upserted=rows_upserted,

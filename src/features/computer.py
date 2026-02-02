@@ -90,12 +90,14 @@ def build_feature_frame(
     value_label: str = "value",
 ) -> pd.DataFrame:
     stacked = data.stack(dropna=True).rename(value_label).reset_index()
-    stacked = stacked.rename(
-        columns={
-            "level_0": "calc_date",
-            "level_1": instrument_id_label,
-        }
-    )
+    if "level_0" in stacked.columns:
+        stacked = stacked.rename(columns={"level_0": "calc_date"})
+    if "date" in stacked.columns and "calc_date" not in stacked.columns:
+        stacked = stacked.rename(columns={"date": "calc_date"})
+    if "level_1" in stacked.columns:
+        stacked = stacked.rename(columns={"level_1": instrument_id_label})
+    if instrument_id_label not in stacked.columns and "instrument_id" in stacked.columns:
+        stacked = stacked.rename(columns={"instrument_id": instrument_id_label})
     stacked["feature_name"] = feature_name
     return stacked
 

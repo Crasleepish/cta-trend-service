@@ -144,6 +144,7 @@ def _build_runner() -> tuple[JobRunner, FakeUpsertRepo, FakeUpsertRepo, FakeUpse
     nav_repo = FakeDateRepo(dates)
     beta_repo = FakeDateRepo(dates)
     aux_repo = FakeAuxRepo(dates)
+    calendar_repo = FakeDateRepo(dates)
 
     feature_repo = FakeUpsertRepo(
         key_fields=["strategy_id", "version", "instrument_id", "calc_date", "feature_name"]
@@ -172,6 +173,7 @@ def _build_runner() -> tuple[JobRunner, FakeUpsertRepo, FakeUpsertRepo, FakeUpse
         nav_repo=nav_repo,
         beta_repo=beta_repo,
         aux_repo=aux_repo,
+        calendar_repo=calendar_repo,
         feature_repo=feature_repo,
         signal_repo=signal_repo,
         weight_repo=weight_repo,

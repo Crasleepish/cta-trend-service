@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, cast
@@ -11,6 +13,8 @@ from numpy.typing import NDArray
 from ..core.config import SignalConfig
 from ..repo.inputs import BetaRepo, BucketRepo, FactorRepo
 from ..repo.outputs import FeatureWeeklySampleRepo, SignalRepo, SignalRow
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -43,8 +47,16 @@ class SignalService:
         force_recompute: bool,
     ) -> SignalRunSummary:
         _ = force_recompute
+        t0 = time.perf_counter()
         buckets = self.bucket_repo.get_range(
             [int(b) for b in universe.get("bucket_ids", [])] or None
+        )
+        logger.info(
+            "signal.io bucket_repo.get_range run_id=%s rebalance_date=%s elapsed=%.3fs buckets=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t0,
+            len(buckets),
         )
         if not buckets:
             raise ValueError("bucket universe is empty")
@@ -64,12 +76,21 @@ class SignalService:
             "T_RATE",
             "rate_pref",
         ]
+        t1 = time.perf_counter()
         feature_rows = self.feature_weekly_repo.get_range(
             strategy_id=strategy_id,
             version=version,
             rebalance_date=rebalance_date,
             instrument_ids=bucket_names,
             feature_names=features_needed,
+        )
+        logger.info(
+            "signal.io feature_weekly_repo.get_range run_id=%s rebalance_date=%s elapsed=%.3fs "
+            "rows=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t1,
+            len(feature_rows),
         )
         if not feature_rows:
             raise ValueError("feature_weekly_sample is empty")
@@ -85,6 +106,7 @@ class SignalService:
             bucket_names,
         )
 
+        t2 = time.perf_counter()
         tilt_rows, checks, warnings = self._build_tilt_signals(
             bucket_assets=bucket_assets,
             rebalance_date=rebalance_date,
@@ -92,6 +114,12 @@ class SignalService:
             snapshot_id=snapshot_id,
             strategy_id=strategy_id,
             version=version,
+        )
+        logger.info(
+            "signal.compute_tilt run_id=%s rebalance_date=%s elapsed=%.3fs",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t2,
         )
 
         all_rows = bucket_signals + tilt_rows
@@ -103,7 +131,15 @@ class SignalService:
                 checks=checks,
             )
 
+        t3 = time.perf_counter()
         rows_upserted = self.signal_repo.upsert_many(all_rows)
+        logger.info(
+            "signal.upsert run_id=%s rebalance_date=%s elapsed=%.3fs rows=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t3,
+            rows_upserted,
+        )
         return SignalRunSummary(
             rebalance_date=rebalance_date,
             rows_upserted=rows_upserted,
@@ -140,14 +176,43 @@ class SignalService:
 
         # raw weight components for audit
         required = ["gate_state", "T", "sigma_eff", "f_sigma"]
+        available_buckets = set(feature_df["instrument_id"].unique())
+        missing_buckets = [bucket for bucket in bucket_names if bucket not in available_buckets]
+        default_values = {
+            "T": 0.0,
+            "gate_state": 0.0,
+            "sigma_eff": 1.0,
+            "f_sigma": 1.0,
+        }
+        for bucket in missing_buckets:
+            for name, value in default_values.items():
+                signals.append(
+                    {
+                        "strategy_id": feature_df["strategy_id"].iloc[0],
+                        "version": feature_df["version"].iloc[0],
+                        "instrument_id": bucket,
+                        "rebalance_date": feature_df["rebalance_date"].iloc[0],
+                        "signal_name": name,
+                        "bucket_id": bucket,
+                        "value": float(value),
+                        "meta_json": {
+                            "run_id": run_id,
+                            "snapshot_id": snapshot_id,
+                            "bucket_id": bucket,
+                        },
+                    }
+                )
         for bucket in bucket_names:
-            bucket_slice = feature_df[feature_df["instrument_id"] == bucket]
-            values: dict[str, float] = {}
-            for name in required:
-                subset = bucket_slice[bucket_slice["feature_name"] == name]
-                if subset.empty:
-                    raise ValueError(f"missing feature {name} for bucket {bucket}")
-                values[name] = float(subset["value"].iloc[0])
+            if bucket in missing_buckets:
+                values = default_values
+            else:
+                bucket_slice = feature_df[feature_df["instrument_id"] == bucket]
+                values = {}
+                for name in required:
+                    subset = bucket_slice[bucket_slice["feature_name"] == name]
+                    if subset.empty:
+                        raise ValueError(f"missing feature {name} for bucket {bucket}")
+                    values[name] = float(subset["value"].iloc[0])
             if values["sigma_eff"] == 0:
                 raise ValueError(f"sigma_eff is zero for bucket {bucket}")
             raw_components = {
@@ -160,10 +225,10 @@ class SignalService:
             for name, value in raw_components.items():
                 signals.append(
                     {
-                        "strategy_id": bucket_slice["strategy_id"].iloc[0],
-                        "version": bucket_slice["version"].iloc[0],
+                        "strategy_id": feature_df["strategy_id"].iloc[0],
+                        "version": feature_df["version"].iloc[0],
                         "instrument_id": bucket,
-                        "rebalance_date": bucket_slice["rebalance_date"].iloc[0],
+                        "rebalance_date": feature_df["rebalance_date"].iloc[0],
                         "signal_name": name,
                         "bucket_id": bucket,
                         "value": float(value),
@@ -192,7 +257,15 @@ class SignalService:
         factors = self.config.tilt_factors
         lookback_days = self.config.tilt_lookback_days
         start_date = rebalance_date - timedelta(days=lookback_days)
+        t0 = time.perf_counter()
         factor_rows = self.factor_repo.get_range(start_date, rebalance_date)
+        logger.info(
+            "signal.io factor_repo.get_range run_id=%s rebalance_date=%s elapsed=%.3fs rows=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t0,
+            len(factor_rows),
+        )
         factor_df = pd.DataFrame(factor_rows)
         if factor_df.empty:
             raise ValueError("factor returns are empty for tilt")
@@ -203,14 +276,32 @@ class SignalService:
         if s_norm == 0:
             warnings.append("tilt tendency vector is zero")
 
+        t1 = time.perf_counter()
         beta_rows = self.beta_repo.get_range(
             [code for assets in bucket_assets.values() for code in assets],
             rebalance_date,
             rebalance_date,
         )
+        logger.info(
+            "signal.io beta_repo.get_range run_id=%s rebalance_date=%s elapsed=%.3fs rows=%s",
+            run_id,
+            rebalance_date,
+            time.perf_counter() - t1,
+            len(beta_rows),
+        )
         beta_df = pd.DataFrame(beta_rows)
         if beta_df.empty:
-            raise ValueError("fund_beta missing for rebalance_date")
+            warnings.append("fund_beta missing for rebalance_date; using equal tilt weights")
+            fallback_rows, fallback_checks = self._equal_tilt_rows(
+                bucket_assets=bucket_assets,
+                rebalance_date=rebalance_date,
+                run_id=run_id,
+                snapshot_id=snapshot_id,
+                strategy_id=strategy_id,
+                version=version,
+            )
+            checks.update(fallback_checks)
+            return fallback_rows, checks, warnings
 
         exposures = beta_df.set_index("code")[factors].astype(float)
 
@@ -252,7 +343,18 @@ class SignalService:
                 eligible[asset] = True
 
             if not any(eligible.values()):
-                raise ValueError(f"no eligible assets for bucket {bucket_id}")
+                warnings.append(f"no eligible assets for bucket {bucket_id}; using equal weights")
+                fallback_rows, fallback_checks = self._equal_tilt_rows(
+                    bucket_assets={bucket_id: assets},
+                    rebalance_date=rebalance_date,
+                    run_id=run_id,
+                    snapshot_id=snapshot_id,
+                    strategy_id=strategy_id,
+                    version=version,
+                )
+                tilt_rows.extend(fallback_rows)
+                checks.update(fallback_checks)
+                continue
 
             score_vec = np.array([scores.get(asset, 0.0) for asset in assets])
             weights = self._softmax(score_vec, self.config.tilt_temperature)
@@ -287,6 +389,39 @@ class SignalService:
                 )
 
         return tilt_rows, checks, warnings
+
+    def _equal_tilt_rows(
+        self,
+        *,
+        bucket_assets: dict[str, list[str]],
+        rebalance_date: date,
+        run_id: str,
+        snapshot_id: str | None,
+        strategy_id: str,
+        version: str,
+    ) -> tuple[list[SignalRow], dict[str, Any]]:
+        rows: list[SignalRow] = []
+        checks: dict[str, Any] = {}
+        for bucket_id, assets in bucket_assets.items():
+            if not assets:
+                raise ValueError(f"bucket {bucket_id} has no assets for tilt")
+            weight = 1.0 / len(assets)
+            for asset in assets:
+                rows.extend(
+                    self._tilt_rows(
+                        asset=asset,
+                        bucket_id=bucket_id,
+                        rebalance_date=rebalance_date,
+                        run_id=run_id,
+                        snapshot_id=snapshot_id,
+                        strategy_id=strategy_id,
+                        version=version,
+                        score=0.0,
+                        weight=weight,
+                    )
+                )
+            checks[bucket_id] = {"tilt_weight_sum": 1.0}
+        return rows, checks
 
     def _tilt_rows(
         self,

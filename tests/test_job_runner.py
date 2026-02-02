@@ -40,6 +40,10 @@ class FakeRepo:
     def get_gold_range(self, *args, **kwargs):
         return self._rows
 
+    def get_nth_before(self, anchor, days):
+        _ = (anchor, days)
+        return date(2025, 12, 31)
+
 
 class FakeUpsertRepo:
     def __init__(self) -> None:
@@ -160,6 +164,7 @@ def test_job_runner_run_full_success() -> None:
     nav_repo = FakeRepo([{"date": date(2026, 1, 1)}])
     beta_repo = FakeRepo([{"date": date(2026, 1, 1)}])
     aux_repo = FakeRepo([{"date": date(2026, 1, 1)}])
+    calendar_repo = FakeRepo([{"date": date(2026, 1, 1)}])
     feature_repo = FakeUpsertRepo()
     signal_repo = FakeUpsertRepo()
     weight_repo = FakeUpsertRepo()
@@ -172,6 +177,7 @@ def test_job_runner_run_full_success() -> None:
         nav_repo=nav_repo,
         beta_repo=beta_repo,
         aux_repo=aux_repo,
+        calendar_repo=calendar_repo,
         feature_repo=feature_repo,
         signal_repo=signal_repo,
         weight_repo=weight_repo,

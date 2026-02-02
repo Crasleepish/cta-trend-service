@@ -147,11 +147,8 @@ def _job_run_table(schema: str | None) -> Table:
     )
 
 
-def _upsert_statement(
-    table: Table,
-    rows: Sequence[Mapping[str, object]],
-) -> Insert:
-    stmt = insert(table).values(rows)
+def _upsert_statement(table: Table) -> Insert:
+    stmt = insert(table)
     pk_cols = [col.name for col in table.primary_key.columns]
     update_cols = {
         col.name: stmt.excluded[col.name] for col in table.columns if col.name not in pk_cols
@@ -165,7 +162,7 @@ class FeatureRepo(BaseRepo):
         self._table = _feature_table(schema)
 
     def upsert_many(self, rows: Sequence[FeatureRow]) -> int:
-        stmt = _upsert_statement(self._table, rows)
+        stmt = _upsert_statement(self._table)
         return self._execute_many(stmt, rows)
 
 
@@ -190,7 +187,7 @@ class FeatureWeeklySampleRepo(BaseRepo):
         self._table = _feature_weekly_sample_table(schema)
 
     def upsert_many(self, rows: Sequence[FeatureWeeklySampleRow]) -> int:
-        stmt = _upsert_statement(self._table, rows)
+        stmt = _upsert_statement(self._table)
         return self._execute_many(stmt, rows)
 
     def get_range(
@@ -221,7 +218,7 @@ class SignalRepo(BaseRepo):
         self._table = _signal_table(schema)
 
     def upsert_many(self, rows: Sequence[SignalRow]) -> int:
-        stmt = _upsert_statement(self._table, rows)
+        stmt = _upsert_statement(self._table)
         return self._execute_many(stmt, rows)
 
     def get_range(
@@ -283,7 +280,7 @@ class WeightRepo(BaseRepo):
         self._table = _weight_table(schema)
 
     def upsert_many(self, rows: Sequence[WeightRow]) -> int:
-        stmt = _upsert_statement(self._table, rows)
+        stmt = _upsert_statement(self._table)
         return self._execute_many(stmt, rows)
 
     def get_by_date(
@@ -357,7 +354,7 @@ class RunRepo(BaseRepo):
         self._table = _job_run_table(schema)
 
     def upsert_many(self, rows: Sequence[JobRunRow]) -> int:
-        stmt = _upsert_statement(self._table, rows)
+        stmt = _upsert_statement(self._table)
         return self._execute_many(stmt, rows)
 
     def update_fields(self, run_id: str, fields: Mapping[str, object]) -> int:

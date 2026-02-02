@@ -14,3 +14,9 @@ config/app.yaml
 
 .env
 .env.*
+
+# integration test artifacts (docs/)
+docs/test_report.md
+docs/weights_weekly_*.csv
+docs/io_timings_*.csv
+docs/bucket_backup_*.csv

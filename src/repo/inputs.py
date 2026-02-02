@@ -78,6 +78,10 @@ class AuxGoldRow(TypedDict):
     change: float | None
 
 
+class TradeCalendarRow(TypedDict):
+    date: date
+
+
 def _bucket_table(schema: str | None) -> Table:
     metadata = MetaData(schema=schema)
     return Table(
@@ -119,6 +123,15 @@ def _market_factors_table(schema: str | None) -> Table:
         Column("SMB", Numeric),
         Column("HML", Numeric),
         Column("QMJ", Numeric),
+    )
+
+
+def _trade_calendar_table(schema: str | None) -> Table:
+    metadata = MetaData(schema=schema)
+    return Table(
+        "trade_calendar",
+        metadata,
+        Column("date", Date, primary_key=True),
     )
 
 
@@ -267,6 +280,34 @@ class AuxRepo(BaseRepo):
         if order_by_date:
             stmt = stmt.order_by(self._index_table.c.date.asc())
         return cast(list[AuxGoldRow], self._fetch_all(stmt))
+
+
+class TradeCalendarRepo(BaseRepo):
+    def __init__(self, engine: Engine, schema: str | None = "public") -> None:
+        super().__init__(engine)
+        self._table = _trade_calendar_table(schema)
+
+    def get_range(self, start_date: date, end_date: date) -> list[TradeCalendarRow]:
+        stmt = (
+            select(self._table)
+            .where(self._table.c.date.between(start_date, end_date))
+            .order_by(self._table.c.date.asc())
+        )
+        return cast(list[TradeCalendarRow], self._fetch_all(stmt))
+
+    def get_nth_before(self, anchor: date, days: int) -> date:
+        if days <= 0:
+            raise ValueError("days must be positive")
+        stmt = (
+            select(self._table.c.date)
+            .where(self._table.c.date < anchor)
+            .order_by(self._table.c.date.desc())
+            .limit(days)
+        )
+        rows = self._fetch_all(stmt)
+        if not rows or len(rows) < days:
+            raise ValueError("not enough trading days before anchor")
+        return cast(date, rows[-1]["date"])
 
     def get_usd_index_range(
         self,
