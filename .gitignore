@@ -12,6 +12,7 @@ __pycache__/
 logs/
 .vbt/
 docs/backtests/
+docs/structural_diagnosis_*
 config/app.yaml
 
 .env

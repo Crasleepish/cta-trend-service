@@ -39,14 +39,15 @@ class FeatureConfig(BaseModel):
     long_window: int = 60
     vol_window: int = 20
     annualize: int = 252
-    theta_on: float = 0.5
-    theta_off: float = 0.2
+    theta_on: float | dict[str, float] = 0.5
+    theta_off: float | dict[str, float] = 0.2
     theta_minus: float = 0.5
-    sigma_min: float = 0.0
-    sigma_max: float = 1.0
-    kappa_sigma: float = 0.1
+    sigma_min: float | dict[str, float] = 0.0
+    sigma_max: float | dict[str, float] = 1.0
+    kappa_sigma: float | dict[str, float] = 0.1
     rate_k: float = 2.0
     theta_rate: float = 0.0
+    x0: float | dict[str, float] = 0.7
 
 
 class SignalConfig(BaseModel):
@@ -101,6 +102,7 @@ class AppConfig(BaseModel):
     signals: SignalConfig = Field(default_factory=SignalConfig)
     portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
     bucket_reco: "BucketRecoConfig" = Field(default_factory=lambda: BucketRecoConfig())
+    auto_params: "AutoParamConfig" = Field(default_factory=lambda: AutoParamConfig())
     backtest: BacktestSettings = Field(default_factory=BacktestSettings)
 
 
@@ -176,6 +178,12 @@ class BucketRecoConfig(BaseModel):
     score: BucketRecoScoreConfig = Field(default_factory=BucketRecoScoreConfig)
     beta: BucketRecoBetaConfig = Field(default_factory=BucketRecoBetaConfig)
     convex_hull: BucketRecoConvexHullConfig = Field(default_factory=BucketRecoConvexHullConfig)
+
+
+class AutoParamConfig(BaseModel):
+    enabled: bool = True
+    window_years: int = 4
+    min_points: int = 200
 
 
 def load_app_config(path: Path | None = None) -> AppConfig:

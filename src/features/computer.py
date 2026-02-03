@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 from typing import Mapping
 
@@ -102,6 +103,6 @@ def build_feature_frame(
     return stacked
 
 
-def feature_params_hash(params: Mapping[str, float]) -> str:
-    items = ";".join(f"{k}={params[k]}" for k in sorted(params))
-    return hashlib.sha256(items.encode("utf-8")).hexdigest()[:12]
+def feature_params_hash(params: Mapping[str, object]) -> str:
+    payload = json.dumps(params, sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]

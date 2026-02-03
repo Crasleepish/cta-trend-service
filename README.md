@@ -90,6 +90,9 @@ uv run python -m src.bucket_reco.runner \
 | `portfolio.sigma_target` | Volatility target cap for risk sleeve. |
 | `portfolio.risk_buckets` | Risk bucket names used for normalization and risk sleeve allocation. |
 | `portfolio.bucket_signal_names` | Required bucket-level signal names. |
+| `auto_params.enabled` | Enable auto-parameter selection at startup (overrides config values). |
+| `auto_params.window_years` | Historical window size (years) for auto-parameter estimation. |
+| `auto_params.min_points` | Minimum trading days required before auto-parameter estimation. |
 | `bucket_reco.proxy.weight_mode` | Proxy weight mode (`equal` or `inv_vol`). |
 | `bucket_reco.proxy.annualize` | Annualization factor for volatility (e.g., 252). |
 | `bucket_reco.proxy.clip_min` | Minimum weight clip for proxy weights (nullable). |
@@ -120,8 +123,6 @@ uv run python -m src.bucket_reco.runner \
 | `bucket_reco.convex_hull.M` | Number of sampled sphere directions. |
 | `bucket_reco.convex_hull.rng_seed` | RNG seed for sphere sampling. |
 | `bucket_reco.convex_hull.topk_per_iter` | Candidate shortlist size per iteration. |
-
-Note: defensive buckets are fixed to `RATE` and `CASH` in code; only `portfolio.risk_buckets` is configurable.
 | `bucket_reco.convex_hull.violation_tol` | Constraint violation tolerance. |
 | `bucket_reco.convex_hull.max_iters` | Max greedy iterations (nullable). |
 | `bucket_reco.convex_hull.clip_rhopow` | Clip for rho power (nullable). |
@@ -136,12 +137,24 @@ Note: defensive buckets are fixed to `RATE` and `CASH` in code; only `portfolio.
 | `backtest.cash_sharing` | Whether cash is shared across assets. |
 | `backtest.freq` | Frequency string passed to stats (e.g., D). |
 
+Note: defensive buckets are fixed to `RATE` and `CASH` in code; only `portfolio.risk_buckets` is configurable.
+
+Auto-parameter overrides (when `auto_params.enabled=true`):
+- `features.theta_on`, `features.theta_off`, `features.theta_minus`, `features.sigma_min`,
+  `features.sigma_max`, `features.kappa_sigma`, `features.theta_rate`, `features.x0`
+- `portfolio.sigma_target`
+- `signals.tilt_lookback_days`, `signals.tilt_scales`, `signals.tilt_eps`, `signals.tilt_temperature`
+
 ## backtest
 
 Backtest task that consumes historical weights and NAV data to generate
 weights-by-date CSV, NAV/returns CSV, equity curve HTML, and a summary report.
 Configuration lives under `backtest.*` in `config/app.yaml` and can be overridden
 via CLI flags.
+
+Note: backtests only read `portfolio_weight_weekly`. If you want 2019-2025
+weights derived from the current strategy, you must run `/jobs/full` (or
+Feature+Signal+Portfolio) for that date range before running the backtest.
 
 Example:
 

@@ -4,7 +4,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, cast
 
 import pandas as pd
 
@@ -215,18 +215,18 @@ class FeatureService:
         params.update(feature_set.feature_params)
         params_hash = computer.feature_params_hash(params)
 
-        short_window = int(params["short_window"])
-        long_window = int(params["long_window"])
-        vol_window = int(params["vol_window"])
-        annualize = int(params["annualize"])
-        theta_on = float(params["theta_on"])
-        theta_off = float(params["theta_off"])
-        theta_minus = float(params["theta_minus"])
-        sigma_min = float(params["sigma_min"])
-        sigma_max = float(params["sigma_max"])
-        kappa_sigma = float(params["kappa_sigma"])
-        rate_k = float(params["rate_k"])
-        theta_rate = float(params["theta_rate"])
+        short_window = int(self._param_number(params["short_window"]))
+        long_window = int(self._param_number(params["long_window"]))
+        vol_window = int(self._param_number(params["vol_window"]))
+        annualize = int(self._param_number(params["annualize"]))
+        theta_on = params["theta_on"]
+        theta_off = params["theta_off"]
+        theta_minus = float(self._param_number(params["theta_minus"]))
+        sigma_min = params["sigma_min"]
+        sigma_max = params["sigma_max"]
+        kappa_sigma = params["kappa_sigma"]
+        rate_k = float(self._param_number(params["rate_k"]))
+        theta_rate = float(self._param_number(params["theta_rate"]))
 
         returns_map = {
             name: computer.log_returns(series.to_frame(name))[name]
@@ -266,14 +266,16 @@ class FeatureService:
             sigma_ann, calendar=calendar.dates, rebalance_date=rebalance_date
         )
 
-        gate_state = computer.hysteresis_gate(
+        gate_state = self._gate_state_by_bucket(
             weekly_history,
             theta_on=theta_on,
             theta_off=theta_off,
         )
         down_drift = computer.down_drift(weekly_history, theta_minus=theta_minus)
-        sigma_eff = computer.sigma_eff(weekly_sigma, sigma_min=sigma_min)
-        f_sigma = computer.tradability_filter(weekly_sigma, sigma_max=sigma_max, kappa=kappa_sigma)
+        sigma_eff = self._sigma_eff_by_bucket(weekly_sigma, sigma_min=sigma_min)
+        f_sigma = self._f_sigma_by_bucket(
+            weekly_sigma, sigma_max=sigma_max, kappa_sigma=kappa_sigma
+        )
 
         weekly_frames: dict[str, pd.DataFrame] = {
             "T": weekly_history,
@@ -330,21 +332,73 @@ class FeatureService:
         )
         return summary, daily_rows, weekly_rows
 
-    def _params_dict(self) -> dict[str, float]:
+    def _params_dict(self) -> dict[str, object]:
         return {
             "short_window": float(self.config.short_window),
             "long_window": float(self.config.long_window),
             "vol_window": float(self.config.vol_window),
             "annualize": float(self.config.annualize),
-            "theta_on": float(self.config.theta_on),
-            "theta_off": float(self.config.theta_off),
+            "theta_on": self.config.theta_on,
+            "theta_off": self.config.theta_off,
             "theta_minus": float(self.config.theta_minus),
-            "sigma_min": float(self.config.sigma_min),
-            "sigma_max": float(self.config.sigma_max),
-            "kappa_sigma": float(self.config.kappa_sigma),
+            "sigma_min": self.config.sigma_min,
+            "sigma_max": self.config.sigma_max,
+            "kappa_sigma": self.config.kappa_sigma,
             "rate_k": float(self.config.rate_k),
             "theta_rate": float(self.config.theta_rate),
+            "x0": self.config.x0,
         }
+
+    def _param_number(self, value: object) -> float:
+        if isinstance(value, dict):
+            if "__default__" in value:
+                return float(value["__default__"])
+            return float(next(iter(value.values())))
+        return float(cast(Any, value))
+
+    def _resolve_bucket_param(self, value: object, bucket: str) -> float:
+        if isinstance(value, dict):
+            if bucket in value:
+                return float(value[bucket])
+            if "__default__" in value:
+                return float(value["__default__"])
+            return float(next(iter(value.values())))
+        return float(cast(Any, value))
+
+    def _gate_state_by_bucket(
+        self, weekly_history: pd.DataFrame, *, theta_on: object, theta_off: object
+    ) -> pd.DataFrame:
+        gate_state = pd.DataFrame(index=weekly_history.index, columns=weekly_history.columns)
+        for bucket in weekly_history.columns:
+            gate_state[bucket] = computer.hysteresis_gate(
+                weekly_history[[bucket]],
+                theta_on=self._resolve_bucket_param(theta_on, bucket),
+                theta_off=self._resolve_bucket_param(theta_off, bucket),
+            )[bucket]
+        return gate_state
+
+    def _sigma_eff_by_bucket(
+        self, weekly_sigma: pd.DataFrame, *, sigma_min: object
+    ) -> pd.DataFrame:
+        sigma_eff = pd.DataFrame(index=weekly_sigma.index, columns=weekly_sigma.columns)
+        for bucket in weekly_sigma.columns:
+            sigma_eff[bucket] = computer.sigma_eff(
+                weekly_sigma[[bucket]],
+                sigma_min=self._resolve_bucket_param(sigma_min, bucket),
+            )[bucket]
+        return sigma_eff
+
+    def _f_sigma_by_bucket(
+        self, weekly_sigma: pd.DataFrame, *, sigma_max: object, kappa_sigma: object
+    ) -> pd.DataFrame:
+        f_sigma = pd.DataFrame(index=weekly_sigma.index, columns=weekly_sigma.columns)
+        for bucket in weekly_sigma.columns:
+            f_sigma[bucket] = computer.tradability_filter(
+                weekly_sigma[[bucket]],
+                sigma_max=self._resolve_bucket_param(sigma_max, bucket),
+                kappa=self._resolve_bucket_param(kappa_sigma, bucket),
+            )[bucket]
+        return f_sigma
 
     def _build_price_series(
         self,

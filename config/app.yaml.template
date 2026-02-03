@@ -39,6 +39,7 @@ features:
   kappa_sigma: 0.1
   rate_k: 2.0
   theta_rate: 0.0
+  x0: 0.7
 
 signals:
   tilt_factors: ["SMB", "QMJ"]
@@ -61,6 +62,11 @@ portfolio:
     - "raw_weight_component_inv_sigma_eff"
     - "raw_weight_component_f_sigma"
     - "rate_pref"
+
+auto_params:
+  enabled: true
+  window_years: 4
+  min_points: 200
 
 bucket_reco:
   proxy:
