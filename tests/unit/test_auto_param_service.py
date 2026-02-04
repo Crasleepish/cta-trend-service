@@ -232,7 +232,7 @@ def test_auto_param_service_computes_and_persists(tmp_path: Path) -> None:
     config = AppConfig.model_validate(
         {
             "db": {"dsn": "postgresql://example", "schema_in": "public", "schema_out": "cta"},
-            "auto_params": {"enabled": True, "window_years": 1, "min_points": 5},
+            "auto_params": {"enabled": True, "auto_param_window_size": 1, "min_points": 5},
             "features": {"short_window": 3, "long_window": 5, "vol_window": 3},
         }
     )
@@ -253,7 +253,6 @@ def test_auto_param_service_computes_and_persists(tmp_path: Path) -> None:
         bucket_repo=FakeBucketRepo(buckets),
         market_repo=FakeMarketRepo(INDEX_ROWS),
         factor_repo=FakeFactorRepo(FACTORS),
-        beta_repo=FakeBetaRepo(BETAS),
         calendar_repo=FakeCalendarRepo(DATES),
         config=config,
         output_path=tmp_path / "auto_params.json",
@@ -262,26 +261,24 @@ def test_auto_param_service_computes_and_persists(tmp_path: Path) -> None:
     result = service.compute_and_persist(as_of=date(2019, 2, 28))
     assert (tmp_path / "auto_params.json").exists()
     assert "features" in result.params
-    assert "theta_on" in result.params["features"]
-    assert "sigma_min" in result.params["features"]
-    assert isinstance(result.params["features"]["theta_on"], dict)
-    assert "GROWTH" in result.params["features"]["theta_on"]
+    assert "theta_rate" in result.params["features"]
+    assert "x0" in result.params["features"]
+    assert "path_quality_gamma" in result.params["features"]
     assert "signals" in result.params
-    assert result.params["signals"]["tilt_scales"]
+    assert "tilt_lookback_days" in result.params["signals"]
 
 
 def test_auto_param_service_fallback_when_insufficient(tmp_path: Path) -> None:
     config = AppConfig.model_validate(
         {
             "db": {"dsn": "postgresql://example", "schema_in": "public", "schema_out": "cta"},
-            "auto_params": {"enabled": True, "window_years": 1, "min_points": 9999},
+            "auto_params": {"enabled": True, "auto_param_window_size": 1, "min_points": 9999},
         }
     )
     service = AutoParamService(
         bucket_repo=FakeBucketRepo([]),
         market_repo=FakeMarketRepo([]),
         factor_repo=FakeFactorRepo([]),
-        beta_repo=FakeBetaRepo([]),
         calendar_repo=FakeCalendarRepo(DATES),
         config=config,
         output_path=tmp_path / "auto_params.json",
@@ -289,32 +286,32 @@ def test_auto_param_service_fallback_when_insufficient(tmp_path: Path) -> None:
 
     result = service.compute_and_persist(as_of=date(2019, 2, 28))
     assert result.used_fallback is True
-    assert result.params["features"]["theta_on"] == config.features.theta_on
+    assert result.params["features"]["theta_rate"] == config.features.theta_rate
 
 
 def test_apply_overrides_updates_config() -> None:
     config = AppConfig.model_validate(
         {
             "db": {"dsn": "postgresql://example", "schema_in": "public", "schema_out": "cta"},
-            "auto_params": {"enabled": True, "window_years": 1, "min_points": 5},
+            "auto_params": {"enabled": True, "auto_param_window_size": 1, "min_points": 5},
         }
     )
     service = AutoParamService(
         bucket_repo=FakeBucketRepo([]),
         market_repo=FakeMarketRepo([]),
         factor_repo=FakeFactorRepo([]),
-        beta_repo=FakeBetaRepo([]),
         calendar_repo=FakeCalendarRepo([]),
         config=config,
         output_path=Path("config/auto_params.json"),
     )
     params = {
-        "features": {"theta_on": {"GROWTH": 0.8}, "sigma_min": {"GROWTH": 0.1}},
+        "features": {"theta_rate": 0.8, "x0": 0.7, "path_quality_gamma": 1.5},
         "portfolio": {"sigma_target": 0.12},
-        "signals": {"tilt_lookback_days": 45, "tilt_scales": {"SMB": 0.9}, "tilt_eps": 1e-9},
+        "signals": {"tilt_lookback_days": 45},
     }
     service.apply_overrides(config, params)
-    assert isinstance(config.features.theta_on, dict)
-    assert config.features.theta_on["GROWTH"] == 0.8
+    assert config.features.theta_rate == 0.8
+    assert config.features.x0 == 0.7
+    assert config.features.path_quality_gamma == 1.5
     assert config.portfolio.sigma_target == 0.12
     assert config.signals.tilt_lookback_days == 45

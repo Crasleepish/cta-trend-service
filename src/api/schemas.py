@@ -60,6 +60,19 @@ class JobResponse(BaseModel):
     error: RunError | None = None
 
 
+class ParamPrepareRequest(BaseModel):
+    as_of: date | None = None
+
+
+class ParamPrepareResponse(BaseModel):
+    auto_params_path: str | None
+    dynamic_params_path: str
+    auto_enabled: bool
+    auto_fallback: bool | None
+    dynamic_fallback: bool | None
+    warnings: list[str]
+
+
 class WeightRowModel(BaseModel):
     rebalance_date: date
     instrument_id: str

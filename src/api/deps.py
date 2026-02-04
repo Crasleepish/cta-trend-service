@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import logging
+from pathlib import Path
 from typing import cast
 
 from fastapi import Request
@@ -16,7 +19,9 @@ from ..repo.inputs import (
     TradeCalendarRepo,
 )
 from ..repo.outputs import FeatureRepo, FeatureWeeklySampleRepo, RunRepo, SignalRepo, WeightRepo
+from ..services.auto_param_service import AutoParamService
 from ..services.backtest_service import BacktestService
+from ..services.dynamic_param_service import DynamicParamService
 from ..services.feature_service import FeatureService
 from ..services.job_runner import JobRunner
 from ..services.portfolio_service import PortfolioService
@@ -30,6 +35,16 @@ def get_config(request: Request) -> AppConfig:
 
 def get_engine(request: Request) -> Engine:
     return cast(Engine, request.app.state.engine)
+
+
+logger = logging.getLogger(__name__)
+
+
+def _load_params_file(path: str) -> dict[str, object] | None:
+    payload_path = Path(path)
+    if not payload_path.exists():
+        return None
+    return cast(dict[str, object], json.loads(payload_path.read_text()))
 
 
 def build_job_runner(config: AppConfig, engine: Engine) -> JobRunner:
@@ -46,6 +61,36 @@ def build_job_runner(config: AppConfig, engine: Engine) -> JobRunner:
     signal_repo = SignalRepo(engine, schema=config.db.schema_out)
     weight_repo = WeightRepo(engine, schema=config.db.schema_out)
     run_repo = RunRepo(engine, schema=config.db.schema_out)
+
+    auto_params = None
+    if config.auto_params.enabled:
+        auto_params = _load_params_file(config.auto_params.path)
+        if auto_params is None:
+            logger.warning(
+                "auto_params missing at %s; using config defaults",
+                config.auto_params.path,
+            )
+        else:
+            AutoParamService(
+                bucket_repo=bucket_repo,
+                market_repo=market_repo,
+                factor_repo=factor_repo,
+                calendar_repo=calendar_repo,
+                config=config,
+                output_path=Path(config.auto_params.path),
+            ).apply_overrides(config, cast(dict[str, object], auto_params.get("params", {})))
+
+    dynamic_params = _load_params_file(config.dynamic_params.path)
+    if dynamic_params is None:
+        raise ValueError(f"dynamic params missing: {config.dynamic_params.path}")
+    DynamicParamService(
+        bucket_repo=bucket_repo,
+        market_repo=market_repo,
+        beta_repo=beta_repo,
+        calendar_repo=calendar_repo,
+        config=config,
+        output_path=Path(config.dynamic_params.path),
+    ).apply_overrides(config, cast(dict[str, object], dynamic_params.get("params", {})))
 
     feature_service = FeatureService(
         bucket_repo=bucket_repo,

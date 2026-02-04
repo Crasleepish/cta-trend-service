@@ -71,8 +71,12 @@ portfolio:
 
 auto_params:
   enabled: true
-  window_years: 4
+  auto_param_window_size: 4
   min_points: 200
+  path: "config/auto_params.json"
+
+dynamic_params:
+  path: "config/dynamic_params.json"
 
 bucket_reco:
   proxy:

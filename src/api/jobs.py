@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Header, Request
 
 from ..core.config import AppConfig
+from ..repo.inputs import BetaRepo, BucketRepo, FactorRepo, MarketRepo, TradeCalendarRepo
+from ..services.auto_param_service import AutoParamService
 from ..services.contracts import JobType, RunContext, RunRequest, RunStatus
+from ..services.dynamic_param_service import DynamicParamService
 from ..services.feature_service import FeatureSetSpec
 from .deps import build_job_runner, get_config, get_engine
 from .errors import ApiErrorException, map_value_error
-from .schemas import JobRequest, JobResponse, RunError
+from .schemas import JobRequest, JobResponse, ParamPrepareRequest, ParamPrepareResponse, RunError
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -152,3 +156,53 @@ def run_portfolio(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> JobResponse:
     return _run_job(request, body, JobType.PORTFOLIO, idempotency_key)
+
+
+@router.post("/param-prepare", response_model=ParamPrepareResponse)
+def prepare_params(request: Request, body: ParamPrepareRequest) -> ParamPrepareResponse:
+    config = get_config(request)
+    engine = get_engine(request)
+
+    bucket_repo = BucketRepo(engine, schema=config.db.schema_out)
+    market_repo = MarketRepo(engine, schema=config.db.schema_in)
+    factor_repo = FactorRepo(engine, schema=config.db.schema_in)
+    beta_repo = BetaRepo(engine, schema=config.db.schema_in)
+    calendar_repo = TradeCalendarRepo(engine, schema=config.db.schema_in)
+
+    warnings: list[str] = []
+    auto_fallback: bool | None = None
+    dynamic_fallback: bool | None = None
+
+    if config.auto_params.enabled:
+        auto_service = AutoParamService(
+            bucket_repo=bucket_repo,
+            market_repo=market_repo,
+            factor_repo=factor_repo,
+            calendar_repo=calendar_repo,
+            config=config,
+            output_path=Path(config.auto_params.path),
+        )
+        auto_result = auto_service.compute_and_persist(as_of=body.as_of)
+        auto_fallback = auto_result.used_fallback
+        warnings.extend(auto_result.warnings)
+
+    dynamic_service = DynamicParamService(
+        bucket_repo=bucket_repo,
+        market_repo=market_repo,
+        beta_repo=beta_repo,
+        calendar_repo=calendar_repo,
+        config=config,
+        output_path=Path(config.dynamic_params.path),
+    )
+    dynamic_result = dynamic_service.compute_and_persist(as_of=body.as_of)
+    dynamic_fallback = dynamic_result.used_fallback
+    warnings.extend(dynamic_result.warnings)
+
+    return ParamPrepareResponse(
+        auto_params_path=config.auto_params.path if config.auto_params.enabled else None,
+        dynamic_params_path=config.dynamic_params.path,
+        auto_enabled=config.auto_params.enabled,
+        auto_fallback=auto_fallback,
+        dynamic_fallback=dynamic_fallback,
+        warnings=warnings,
+    )

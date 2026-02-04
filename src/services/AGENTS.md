@@ -11,6 +11,7 @@
 .
 |-- backtest_service.py
 |-- auto_param_service.py
+|-- dynamic_param_service.py
 |-- feature_service.py
 |-- job_runner.py
 |-- portfolio_service.py
@@ -23,6 +24,7 @@
 
 * `backtest_service.py`：回测任务编排与报告输出（调用 backtest engine）。
 * `auto_param_service.py`：基于历史数据自动估计参数并写入 `config/auto_params.json`。
+* `dynamic_param_service.py`：计算分 bucket / 分因子的动态参数并写入 `config/dynamic_params.json`。
 * `feature_service.py`：特征计算编排与落库（feature_daily + weekly sample）。
 * `signal_service.py`：信号决策与倾斜层产出（signal_weekly）。
 * `portfolio_service.py`：组合权重层（只读 signal_weekly）。

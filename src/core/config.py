@@ -109,6 +109,7 @@ class AppConfig(BaseModel):
     portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
     bucket_reco: "BucketRecoConfig" = Field(default_factory=lambda: BucketRecoConfig())
     auto_params: "AutoParamConfig" = Field(default_factory=lambda: AutoParamConfig())
+    dynamic_params: "DynamicParamConfig" = Field(default_factory=lambda: DynamicParamConfig())
     backtest: BacktestSettings = Field(default_factory=BacktestSettings)
 
 
@@ -188,8 +189,13 @@ class BucketRecoConfig(BaseModel):
 
 class AutoParamConfig(BaseModel):
     enabled: bool = True
-    window_years: int = 4
+    auto_param_window_size: int = 4
     min_points: int = 200
+    path: str = "config/auto_params.json"
+
+
+class DynamicParamConfig(BaseModel):
+    path: str = "config/dynamic_params.json"
 
 
 def load_app_config(path: Path | None = None) -> AppConfig:

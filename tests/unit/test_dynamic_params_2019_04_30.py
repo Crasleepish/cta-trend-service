@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from src.core.config import AppConfig, FeatureConfig, PortfolioConfig, SignalConfig
-from src.services.auto_param_service import AutoParamService
+from src.services.dynamic_param_service import DynamicParamService
 
 FIXTURE_DIR = Path("tests/fixtures/auto_params_2019-04-30")
 
@@ -46,15 +46,24 @@ class FakeMarketRepo:
 
 
 @dataclass
-class FakeFactorRepo:
+class FakeBetaRepo:
     rows: list[Mapping[str, Any]]
 
     def get_range(
-        self, start_date: date, end_date: date, order_by_date: bool = True
+        self,
+        fund_codes: Iterable[str],
+        start_date: date,
+        end_date: date,
+        order_by_date: bool = True,
     ) -> list[Mapping[str, Any]]:
-        rows = [row for row in self.rows if start_date <= row["date"] <= end_date]
+        codes = set(fund_codes)
+        rows = [
+            row
+            for row in self.rows
+            if row["code"] in codes and start_date <= row["date"] <= end_date
+        ]
         if order_by_date:
-            rows.sort(key=lambda r: r["date"])
+            rows.sort(key=lambda r: (r["code"], r["date"]))
         return rows
 
 
@@ -77,7 +86,6 @@ def _load_buckets(path: Path) -> list[Mapping[str, Any]]:
 
 
 def _build_config() -> AppConfig:
-    # Minimal config for auto param computation.
     return AppConfig(
         db={"dsn": "", "schema_in": "public", "schema_out": "cta"},
         features=FeatureConfig(),
@@ -87,60 +95,34 @@ def _build_config() -> AppConfig:
     )
 
 
-def test_auto_params_2019_04_30_ground_truth(tmp_path: Path) -> None:
+def test_dynamic_params_2019_04_30_ground_truth(tmp_path: Path) -> None:
     config = _build_config()
 
     buckets = _load_buckets(FIXTURE_DIR / "buckets.json")
     calendar_rows = _load_csv(FIXTURE_DIR / "trade_calendar.csv")
     index_rows = _load_csv(FIXTURE_DIR / "index_hist.csv")
-    factor_rows = _load_csv(FIXTURE_DIR / "market_factors.csv")
-    service = AutoParamService(
+    beta_rows = _load_csv(FIXTURE_DIR / "fund_beta.csv")
+
+    service = DynamicParamService(
         bucket_repo=FakeBucketRepo(buckets),
         market_repo=FakeMarketRepo(index_rows),
-        factor_repo=FakeFactorRepo(factor_rows),
+        beta_repo=FakeBetaRepo(beta_rows),
         calendar_repo=FakeCalendarRepo([r["date"] for r in calendar_rows]),
         config=config,
-        output_path=tmp_path / "auto_params.json",
+        output_path=tmp_path / "dynamic_params.json",
     )
 
     result = service.compute_and_persist(as_of=date(2019, 4, 30))
 
-    expected = {
-        "features": {
-            "theta_rate": 56.20589403674875,
-            "x0": 0.7425544189342311,
-            "path_quality_gamma": 2.0,
-        },
-        "portfolio": {"sigma_target": 0.14824680700851597},
-        "signals": {
-            "tilt_lookback_days": 20,
-        },
-    }
-
+    expected = json.loads((FIXTURE_DIR / "dynamic_params.json").read_text())["params"]
     actual = result.params
 
-    assert np.isclose(
-        actual["features"]["theta_rate"],
-        expected["features"]["theta_rate"],
-        rtol=1e-10,
-        atol=1e-12,
-    )
-    assert np.isclose(
-        actual["features"]["x0"],
-        expected["features"]["x0"],
-        rtol=1e-10,
-        atol=1e-12,
-    )
-    assert np.isclose(
-        actual["features"]["path_quality_gamma"],
-        expected["features"]["path_quality_gamma"],
-        rtol=1e-10,
-        atol=1e-12,
-    )
-    assert np.isclose(
-        actual["portfolio"]["sigma_target"],
-        expected["portfolio"]["sigma_target"],
-        rtol=1e-10,
-        atol=1e-12,
-    )
-    assert actual["signals"]["tilt_lookback_days"] == expected["signals"]["tilt_lookback_days"]
+    def _assert_close_map(actual_map: dict[str, float], expected_map: dict[str, float]) -> None:
+        assert set(actual_map.keys()) == set(expected_map.keys())
+        for key, expected_value in expected_map.items():
+            assert np.isclose(actual_map[key], expected_value, rtol=1e-10, atol=1e-12)
+
+    for key in ["theta_on", "theta_off", "theta_minus", "sigma_min", "sigma_max", "kappa_sigma"]:
+        _assert_close_map(actual["features"][key], expected["features"][key])
+
+    _assert_close_map(actual["signals"]["tilt_scales"], expected["signals"]["tilt_scales"])
