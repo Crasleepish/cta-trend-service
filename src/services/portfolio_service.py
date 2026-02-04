@@ -185,6 +185,7 @@ class PortfolioService:
             "raw_weight_component_trend",
             "raw_weight_component_inv_sigma_eff",
             "raw_weight_component_f_sigma",
+            "raw_weight_component_path_quality",
         ]
         raw_weights: dict[str, float] = {}
         for bucket in risk_buckets:

@@ -73,6 +73,7 @@ class SignalService:
             "sigma_ann",
             "sigma_eff",
             "f_sigma",
+            "path_quality_g",
             "T_RATE",
             "rate_pref",
         ]
@@ -175,7 +176,7 @@ class SignalService:
             )
 
         # raw weight components for audit
-        required = ["gate_state", "T", "sigma_eff", "f_sigma"]
+        required = ["gate_state", "T", "sigma_eff", "f_sigma", "path_quality_g"]
         available_buckets = set(feature_df["instrument_id"].unique())
         missing_buckets = [bucket for bucket in bucket_names if bucket not in available_buckets]
         default_values = {
@@ -183,6 +184,7 @@ class SignalService:
             "gate_state": 0.0,
             "sigma_eff": 1.0,
             "f_sigma": 1.0,
+            "path_quality_g": 1.0,
         }
         for bucket in missing_buckets:
             for name, value in default_values.items():
@@ -221,6 +223,7 @@ class SignalService:
                 "raw_weight_component_trend": values["T"],
                 "raw_weight_component_inv_sigma_eff": 1.0 / values["sigma_eff"],
                 "raw_weight_component_f_sigma": values["f_sigma"],
+                "raw_weight_component_path_quality": values["path_quality_g"],
             }
             for name, value in raw_components.items():
                 signals.append(

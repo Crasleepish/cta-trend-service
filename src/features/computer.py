@@ -42,6 +42,47 @@ def trend_strength(
     return (ma_short - ma_long) / denom
 
 
+def path_quality_z(prices: pd.DataFrame, *, window_days: int) -> pd.DataFrame:
+    if window_days <= 1:
+        raise ValueError("window_days must be > 1")
+    roll_min = prices.rolling(window=window_days, min_periods=window_days).min()
+    roll_max = prices.rolling(window=window_days, min_periods=window_days).max()
+    runup = np.log(prices / roll_min)
+    drawdown = np.log(roll_max / prices)
+    denom = runup + drawdown
+    z = runup / denom
+    return z.where(denom != 0.0, 0.5)
+
+
+def path_quality_g(
+    z: pd.DataFrame,
+    *,
+    x0: float | Mapping[str, float],
+    gamma: float | Mapping[str, float],
+) -> pd.DataFrame:
+    if isinstance(x0, Mapping):
+        x0_series = pd.Series(x0)
+    else:
+        x0_series = pd.Series({col: float(x0) for col in z.columns})
+    if isinstance(gamma, Mapping):
+        gamma_series = pd.Series(gamma)
+    else:
+        gamma_series = pd.Series({col: float(gamma) for col in z.columns})
+
+    out = pd.DataFrame(index=z.index, columns=z.columns, dtype=float)
+    for col in z.columns:
+        x0_val = float(x0_series.get(col, 0.0))
+        gamma_val = float(gamma_series.get(col, 1.0))
+        if gamma_val <= 0:
+            raise ValueError("gamma must be positive")
+        if x0_val >= 1.0:
+            out[col] = 0.0
+            continue
+        ratio = (z[col] - x0_val) / (1.0 - x0_val)
+        out[col] = np.where(z[col] <= x0_val, 0.0, ratio.clip(lower=0.0) ** gamma_val)
+    return out
+
+
 def hysteresis_gate(
     trend_weekly: pd.DataFrame,
     *,

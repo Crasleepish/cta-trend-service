@@ -113,6 +113,7 @@ def test_portfolio_service_from_signals(tmp_path: Path) -> None:
         ("raw_weight_component_trend", 1.0),
         ("raw_weight_component_inv_sigma_eff", 5.0),
         ("raw_weight_component_f_sigma", 1.0),
+        ("raw_weight_component_path_quality", 1.0),
     ]:
         signals.append(
             {

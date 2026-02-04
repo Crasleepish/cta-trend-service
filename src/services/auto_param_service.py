@@ -106,6 +106,7 @@ class AutoParamService:
                 "theta_on": bucket_params["theta_on"],
                 "theta_off": bucket_params["theta_off"],
                 "theta_minus": bucket_params["theta_minus"],
+                "path_quality_gamma": bucket_params["path_quality_gamma"],
                 "sigma_min": bucket_params["sigma_min"],
                 "sigma_max": bucket_params["sigma_max"],
                 "kappa_sigma": bucket_params["kappa_sigma"],
@@ -142,6 +143,7 @@ class AutoParamService:
             "theta_on",
             "theta_off",
             "theta_minus",
+            "path_quality_gamma",
             "sigma_min",
             "sigma_max",
             "kappa_sigma",
@@ -169,6 +171,7 @@ class AutoParamService:
                 "theta_on": self.config.features.theta_on,
                 "theta_off": self.config.features.theta_off,
                 "theta_minus": self.config.features.theta_minus,
+                "path_quality_gamma": self.config.features.path_quality_gamma,
                 "sigma_min": self.config.features.sigma_min,
                 "sigma_max": self.config.features.sigma_max,
                 "kappa_sigma": self.config.features.kappa_sigma,
@@ -258,12 +261,25 @@ class AutoParamService:
         sigma_max: dict[str, float] = {}
         kappa_sigma: dict[str, float] = {}
         x0: dict[str, float] = {}
+        path_quality_gamma: dict[str, float] = {}
+
+        gamma_default = self.config.features.path_quality_gamma
+        if isinstance(gamma_default, dict):
+            if "__default__" in gamma_default:
+                gamma_default = gamma_default["__default__"]
+            else:
+                gamma_default = next(iter(gamma_default.values()))
+        gamma_default = float(gamma_default)
 
         trend_by_bucket: dict[str, pd.Series] = {}
         warnings: list[str] = []
         fallback = False
 
         weekly_dates = sample_week_last_trading_day(calendar.dates)
+        path_quality_window = int(self.config.features.path_quality_window_days)
+        x0_quantile = 0.65
+        gamma_quantile = 0.9
+        gamma_target = 0.6
 
         for bucket, series in price_series.items():
             if series.dropna().shape[0] < self.config.auto_params.min_points:
@@ -324,19 +340,47 @@ class AutoParamService:
                 warnings.append(f"{bucket}: sigma_hi <= sigma_max")
                 fallback = True
 
-            abs_t = weekly_t.abs()
-            if abs_t.max() == abs_t.min():
-                warnings.append(f"{bucket}: flat trend magnitude")
+            roll_min = series.rolling(path_quality_window, min_periods=path_quality_window).min()
+            roll_max = series.rolling(path_quality_window, min_periods=path_quality_window).max()
+            runup = np.log(series / roll_min)
+            drawdown = np.log(roll_max / series)
+            denom = runup + drawdown
+            z_daily = runup / denom
+            z_daily = z_daily.where(denom != 0, 0.5)
+            z_weekly = z_daily.loc[weekly_dates].dropna()
+            if z_weekly.empty:
+                warnings.append(f"{bucket}: empty path_quality_z series")
                 fallback = True
+                continue
+            x0_val = float(z_weekly.quantile(x0_quantile))
+            x0[bucket] = x0_val
+
+            above = z_weekly[z_weekly > x0_val]
+            if above.empty:
+                warnings.append(f"{bucket}: no samples above x0 for gamma")
+                fallback = True
+                path_quality_gamma[bucket] = gamma_default
             else:
-                z = (abs_t - abs_t.min()) / (abs_t.max() - abs_t.min())
-                x0_val = float(z.quantile(0.6))
-                x0[bucket] = float(np.clip(x0_val, 0.51, 0.99))
+                zq = float(above.quantile(gamma_quantile))
+                ratio = (zq - x0_val) / (1 - x0_val) if x0_val < 1 else 0.0
+                if ratio <= 0 or ratio >= 1:
+                    warnings.append(f"{bucket}: invalid gamma ratio; fallback gamma")
+                    fallback = True
+                    path_quality_gamma[bucket] = gamma_default
+                else:
+                    gamma_val = float(np.log(gamma_target) / np.log(ratio))
+                    if not np.isfinite(gamma_val) or gamma_val <= 0:
+                        warnings.append(f"{bucket}: non-positive gamma; fallback")
+                        fallback = True
+                        path_quality_gamma[bucket] = gamma_default
+                    else:
+                        path_quality_gamma[bucket] = gamma_val
 
         return {
             "theta_on": theta_on,
             "theta_off": theta_off,
             "theta_minus": theta_minus,
+            "path_quality_gamma": path_quality_gamma,
             "sigma_min": sigma_min,
             "sigma_max": sigma_max,
             "kappa_sigma": kappa_sigma,
@@ -432,8 +476,7 @@ class AutoParamService:
                 iqr = beta_df[tilt_factors].quantile(0.75) - beta_df[tilt_factors].quantile(0.25)
                 tilt_scales = {k: float(v) if v > 0 else 1.0 for k, v in iqr.items()}
 
-            min_scale = min(tilt_scales.values()) if tilt_scales else 1.0
-            tilt_eps = max(1e-12, float(min_scale) * 1e-6)
+            tilt_eps = float(self.config.signals.tilt_eps)
 
         return {
             "tilt_lookback_days": tilt_lookback,

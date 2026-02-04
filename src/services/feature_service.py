@@ -49,6 +49,8 @@ class FeatureService:
             FeatureSpec("r_log_daily", "daily", ("prices",), lambda *_: pd.DataFrame()),
             FeatureSpec("sigma_ann", "daily", ("prices",), lambda *_: pd.DataFrame()),
             FeatureSpec("T", "daily", ("prices",), lambda *_: pd.DataFrame()),
+            FeatureSpec("path_quality_z", "daily", ("prices",), lambda *_: pd.DataFrame()),
+            FeatureSpec("path_quality_g", "daily", ("prices",), lambda *_: pd.DataFrame()),
             FeatureSpec("sigma_eff", "weekly", ("prices",), lambda *_: pd.DataFrame()),
             FeatureSpec("f_sigma", "weekly", ("prices",), lambda *_: pd.DataFrame()),
             FeatureSpec("gate_state", "weekly", ("prices",), lambda *_: pd.DataFrame()),
@@ -219,9 +221,11 @@ class FeatureService:
         long_window = int(self._param_number(params["long_window"]))
         vol_window = int(self._param_number(params["vol_window"]))
         annualize = int(self._param_number(params["annualize"]))
+        path_quality_window = int(self._param_number(params["path_quality_window_days"]))
         theta_on = params["theta_on"]
         theta_off = params["theta_off"]
         theta_minus = float(self._param_number(params["theta_minus"]))
+        path_quality_gamma = params["path_quality_gamma"]
         sigma_min = params["sigma_min"]
         sigma_max = params["sigma_max"]
         kappa_sigma = params["kappa_sigma"]
@@ -252,11 +256,19 @@ class FeatureService:
         returns = pd.concat(returns_map, axis=1)
         sigma_ann = pd.concat(sigma_map, axis=1)
         trend = pd.concat(trend_map, axis=1)
+        path_quality_z = computer.path_quality_z(prices, window_days=path_quality_window)
+        path_quality_g = computer.path_quality_g(
+            path_quality_z,
+            x0=cast(Any, params["x0"]),
+            gamma=cast(Any, path_quality_gamma),
+        )
 
         daily_frames: dict[str, pd.DataFrame] = {
             "r_log_daily": returns,
             "sigma_ann": sigma_ann,
             "T": trend,
+            "path_quality_z": path_quality_z,
+            "path_quality_g": path_quality_g,
         }
 
         weekly_history = sampler.weekly_history(
@@ -264,6 +276,12 @@ class FeatureService:
         )
         weekly_sigma = sampler.weekly_history(
             sigma_ann, calendar=calendar.dates, rebalance_date=rebalance_date
+        )
+        weekly_path_z = sampler.weekly_history(
+            path_quality_z, calendar=calendar.dates, rebalance_date=rebalance_date
+        )
+        weekly_path_g = sampler.weekly_history(
+            path_quality_g, calendar=calendar.dates, rebalance_date=rebalance_date
         )
 
         gate_state = self._gate_state_by_bucket(
@@ -283,6 +301,8 @@ class FeatureService:
             "f_sigma": f_sigma,
             "gate_state": gate_state,
             "down_drift": down_drift,
+            "path_quality_z": weekly_path_z,
+            "path_quality_g": weekly_path_g,
         }
 
         if "RATE" in weekly_history.columns:
@@ -338,9 +358,11 @@ class FeatureService:
             "long_window": float(self.config.long_window),
             "vol_window": float(self.config.vol_window),
             "annualize": float(self.config.annualize),
+            "path_quality_window_days": float(self.config.path_quality_window_days),
             "theta_on": self.config.theta_on,
             "theta_off": self.config.theta_off,
-            "theta_minus": float(self.config.theta_minus),
+            "theta_minus": self.config.theta_minus,
+            "path_quality_gamma": self.config.path_quality_gamma,
             "sigma_min": self.config.sigma_min,
             "sigma_max": self.config.sigma_max,
             "kappa_sigma": self.config.kappa_sigma,

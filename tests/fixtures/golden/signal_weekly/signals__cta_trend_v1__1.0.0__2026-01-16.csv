@@ -6,9 +6,11 @@ rebalance_date,instrument_id,signal_name,value
 2026-01-16,GROWTH,T,1.0
 2026-01-16,GROWTH,f_sigma,1.0
 2026-01-16,GROWTH,gate_state,1.0
+2026-01-16,GROWTH,path_quality_g,1.0
 2026-01-16,GROWTH,raw_weight_component_f_sigma,1.0
 2026-01-16,GROWTH,raw_weight_component_gate,1.0
 2026-01-16,GROWTH,raw_weight_component_inv_sigma_eff,5.0
+2026-01-16,GROWTH,raw_weight_component_path_quality,1.0
 2026-01-16,GROWTH,raw_weight_component_risk_budget,1.0
 2026-01-16,GROWTH,raw_weight_component_trend,1.0
 2026-01-16,GROWTH,sigma_ann,0.2
@@ -19,10 +21,12 @@ rebalance_date,instrument_id,signal_name,value
 2026-01-16,RATE,T_RATE,0.5
 2026-01-16,RATE,f_sigma,1.0
 2026-01-16,RATE,gate_state,1.0
+2026-01-16,RATE,path_quality_g,1.0
 2026-01-16,RATE,rate_pref,0.7
 2026-01-16,RATE,raw_weight_component_f_sigma,1.0
 2026-01-16,RATE,raw_weight_component_gate,1.0
 2026-01-16,RATE,raw_weight_component_inv_sigma_eff,5.0
+2026-01-16,RATE,raw_weight_component_path_quality,1.0
 2026-01-16,RATE,raw_weight_component_risk_budget,1.0
 2026-01-16,RATE,raw_weight_component_trend,1.0
 2026-01-16,RATE,sigma_ann,0.2

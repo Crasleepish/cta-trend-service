@@ -95,6 +95,7 @@ def test_signal_service_tilt_and_golden(tmp_path: Path) -> None:
             ("sigma_ann", 0.2),
             ("sigma_eff", 0.2),
             ("f_sigma", 1.0),
+            ("path_quality_g", 1.0),
         ]:
             feature_rows.append(
                 {

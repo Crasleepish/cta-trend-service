@@ -27,13 +27,17 @@ features:
     - "down_drift"
     - "T_RATE"
     - "rate_pref"
+    - "path_quality_z"
+    - "path_quality_g"
   short_window: 20
   long_window: 60
   vol_window: 20
   annualize: 252
+  path_quality_window_days: 40
   theta_on: 0.5
   theta_off: 0.2
   theta_minus: 0.5
+  path_quality_gamma: 2.0
   sigma_min: 0.0
   sigma_max: 1.0
   kappa_sigma: 0.1
@@ -56,11 +60,13 @@ portfolio:
     - "gate_state"
     - "sigma_eff"
     - "f_sigma"
+    - "path_quality_g"
     - "raw_weight_component_risk_budget"
     - "raw_weight_component_gate"
     - "raw_weight_component_trend"
     - "raw_weight_component_inv_sigma_eff"
     - "raw_weight_component_f_sigma"
+    - "raw_weight_component_path_quality"
     - "rate_pref"
 
 auto_params:

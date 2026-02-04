@@ -33,15 +33,19 @@ class FeatureConfig(BaseModel):
             "down_drift",
             "T_RATE",
             "rate_pref",
+            "path_quality_z",
+            "path_quality_g",
         ]
     )
     short_window: int = 20
     long_window: int = 60
     vol_window: int = 20
     annualize: int = 252
+    path_quality_window_days: int = 40
     theta_on: float | dict[str, float] = 0.5
     theta_off: float | dict[str, float] = 0.2
     theta_minus: float = 0.5
+    path_quality_gamma: float | dict[str, float] = 2.0
     sigma_min: float | dict[str, float] = 0.0
     sigma_max: float | dict[str, float] = 1.0
     kappa_sigma: float | dict[str, float] = 0.1
@@ -67,11 +71,13 @@ class PortfolioConfig(BaseModel):
             "gate_state",
             "sigma_eff",
             "f_sigma",
+            "path_quality_g",
             "raw_weight_component_risk_budget",
             "raw_weight_component_gate",
             "raw_weight_component_trend",
             "raw_weight_component_inv_sigma_eff",
             "raw_weight_component_f_sigma",
+            "raw_weight_component_path_quality",
             "rate_pref",
         ]
     )
