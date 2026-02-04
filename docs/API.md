@@ -33,8 +33,11 @@
 ### POST `/jobs/feature`
 ### POST `/jobs/signal`
 ### POST `/jobs/portfolio`
+### POST `/jobs/param-prepare`
 
 触发一次同步 job。成功或失败都会返回 `run_id`。
+
+`/jobs/param-prepare` 用于参数准备（AutoParam + DynamicParam）。支持传入 `as_of`（默认今天），用于回测场景按历史时点计算参数。所有参数计算窗口以 `as_of` 为结束日期。
 
 **Header**
 - `Idempotency-Key`（可选）：幂等键
@@ -42,6 +45,7 @@
 **Request**
 ```json
 {
+  "as_of": "2026-01-16",
   "rebalance_date": "2026-01-16",
   "calc_start": "2025-09-01",
   "calc_end": "2026-01-16",
@@ -61,6 +65,25 @@
   "version": "1.0.0",
   "snapshot_id": "snap_20260116",
   "portfolio_id": "main"
+}
+```
+
+**Request (param-prepare only)**
+```json
+{
+  "as_of": "2026-01-16"
+}
+```
+
+**Response 200 (param-prepare)**
+```json
+{
+  "auto_params_path": "config/auto_params.json",
+  "dynamic_params_path": "config/dynamic_params.json",
+  "auto_enabled": true,
+  "auto_fallback": false,
+  "dynamic_fallback": false,
+  "warnings": []
 }
 ```
 
