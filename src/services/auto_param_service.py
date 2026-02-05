@@ -306,8 +306,8 @@ class AutoParamService:
         warnings: list[str],
     ) -> dict[str, Any]:
         fallback = False
-        x0_quantile = 0.65
-        gamma_quantile = 0.9
+        x0_quantile = 0.6
+        gamma_quantile = 0.8
         gamma_target = 0.6
         x0_default_raw = self.config.features.x0
         if isinstance(x0_default_raw, dict):
@@ -328,7 +328,7 @@ class AutoParamService:
         path_quality_window = int(self.config.features.path_quality_window_days)
         weekly_dates = sample_week_last_trading_day(calendar.dates)
 
-        z_weekly_all = []
+        z_weekly_by_bucket: dict[str, pd.Series] = {}
         for bucket, series in price_series.items():
             roll_min = series.rolling(path_quality_window, min_periods=path_quality_window).min()
             roll_max = series.rolling(path_quality_window, min_periods=path_quality_window).max()
@@ -339,35 +339,56 @@ class AutoParamService:
             z_daily = z_daily.where(denom != 0, 0.5)
             z_weekly = z_daily.loc[weekly_dates].dropna()
             if not z_weekly.empty:
-                z_weekly_all.append(z_weekly)
+                z_weekly_by_bucket[bucket] = z_weekly
 
-        if not z_weekly_all:
+        if not z_weekly_by_bucket:
             warnings.append("path_quality_z empty; fallback to config x0/gamma")
             return {"x0": x0_default, "path_quality_gamma": gamma_default, "fallback": True}
 
-        z_all = pd.concat(z_weekly_all, axis=0).dropna()
-        if z_all.empty:
+        x0_values: list[float] = []
+        gamma_values: list[float] = []
+
+        for bucket, z_weekly in z_weekly_by_bucket.items():
+            z_weekly = z_weekly.dropna()
+            if z_weekly.empty:
+                continue
+            x0_val = float(z_weekly.quantile(x0_quantile))
+            x0_values.append(x0_val)
+            above = z_weekly[z_weekly > x0_val]
+            if above.empty:
+                continue
+            zq = float(above.quantile(gamma_quantile))
+            ratio = (zq - x0_val) / (1 - x0_val) if x0_val < 1 else 0.0
+            if ratio <= 0 or ratio >= 1:
+                continue
+            gamma_val = float(np.log(gamma_target) / np.log(ratio))
+            if np.isfinite(gamma_val) and gamma_val > 0:
+                gamma_values.append(gamma_val)
+
+        if not x0_values:
             warnings.append("path_quality_z all NaN; fallback to config x0/gamma")
             return {"x0": x0_default, "path_quality_gamma": gamma_default, "fallback": True}
 
-        x0_val = float(z_all.quantile(x0_quantile))
-        above = z_all[z_all > x0_val]
-        if above.empty:
-            warnings.append("path_quality_z no samples above x0; fallback gamma")
-            fallback = True
-            return {"x0": x0_val, "path_quality_gamma": gamma_default, "fallback": fallback}
+        if len(x0_values) > 2:
+            x0_agg = float(pd.Series(x0_values).median())
+        else:
+            x0_agg = float(np.mean(x0_values))
 
-        zq = float(above.quantile(gamma_quantile))
-        ratio = (zq - x0_val) / (1 - x0_val) if x0_val < 1 else 0.0
-        if ratio <= 0 or ratio >= 1:
-            warnings.append("path_quality gamma ratio invalid; fallback gamma")
-            fallback = True
-            return {"x0": x0_val, "path_quality_gamma": gamma_default, "fallback": fallback}
-
-        gamma_val = float(np.log(gamma_target) / np.log(ratio))
-        if not np.isfinite(gamma_val) or gamma_val <= 0:
+        if gamma_values:
+            if len(x0_values) > 2:
+                gamma_agg = float(pd.Series(gamma_values).median())
+            else:
+                gamma_agg = float(np.mean(gamma_values))
+        else:
             warnings.append("path_quality gamma invalid; fallback")
             fallback = True
-            gamma_val = gamma_default
+            gamma_agg = gamma_default
 
-        return {"x0": x0_val, "path_quality_gamma": gamma_val, "fallback": fallback}
+        if np.isfinite(gamma_agg):
+            gamma_agg = float(np.clip(gamma_agg, 1.0, 3.0))
+        if not np.isfinite(gamma_agg) or gamma_agg <= 0:
+            warnings.append("path_quality gamma invalid; fallback")
+            fallback = True
+            gamma_agg = gamma_default
+
+        return {"x0": x0_agg, "path_quality_gamma": gamma_agg, "fallback": fallback}

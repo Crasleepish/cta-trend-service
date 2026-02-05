@@ -217,6 +217,26 @@ Interpretation:
 - near 0: forward path dominated by drawdown
 - near 0.5: weak/noisy
 
+**Implementation note (Production, no forward data):**  
+In live trading we cannot use forward horizons. The production proxy uses a **backward window** and defines:
+
+$$
+\mathrm{runup}_{b,t} = \ln\left(\frac{P_{b,t}}{\min_{t-N \le s \le t} P_{b,s}}\right), \qquad
+\mathrm{drawdown}_{b,t} = \ln\left(\frac{\max_{t-N \le s \le t} P_{b,s}}{P_{b,t}}\right),
+$$
+
+and
+
+$$
+z_{b,t} = \frac{\mathrm{runup}_{b,t}}{\mathrm{runup}_{b,t} + \mathrm{drawdown}_{b,t}},
+$$
+
+with the convention $z_{b,t}=0.5$ if the denominator is 0.  
+This yields a stable, bounded **path-position** proxy in $[0,1]$.
+
+> If an **ex‑post training label** is needed, keep the forward definition above (buy at $t$, sell at the future peak):  
+> $\mathrm{runup}^{\text{label}}_{b,t} = \ln(\max_{1 \le k \le N} P_{b,t+k} / P_{b,t})$.
+
 ### 5.2 Live Proxy $z_{b,t}$ (Optional ML)
 
 In live trading we cannot use forward data. We may train a model to predict a proxy score using only information at time $t$:
@@ -247,6 +267,22 @@ Design intent:
 
 - $x_0$ enforces a minimum path-quality standard (avoid allocating to marginal “almost-trends”).
 - $\gamma$ controls how aggressively exceptionally clean trends are rewarded.
+
+**Parameter estimation (default):**
+
+- $x_0$ is set as a **quantile** of the historical $z_{b,t}$ distribution:  
+  $$x_0 = Q_{0.60}(z_{b,t})$$
+  (computed over the rolling auto‑param window).
+- $\gamma$ is calibrated so that a high‑quantile path quality reaches a target level:  
+  choose $q=0.8$ and target $g(z_q)=0.6$, then solve  
+  $$\gamma = \frac{\ln(0.6)}{\ln\left(\frac{z_q - x_0}{1 - x_0}\right)}.$$
+  If the ratio is invalid or degenerate, fall back to the configured default $\gamma$.
+
+Bucket aggregation for parameter estimation:
+
+- Compute $x_0$ and $\gamma$ **per bucket**.
+- If the number of buckets $>2$, use the **median** across buckets.
+- If the number of buckets $\le 2$, use the **mean** across buckets.
 
 **Central rule:** $g(\cdot)$ is intentionally **not time-smoothed**. All temporal smoothing and turnover control are handled centrally in the **Execution & Control Layer**.
 

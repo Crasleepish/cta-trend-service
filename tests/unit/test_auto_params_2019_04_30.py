@@ -108,8 +108,8 @@ def test_auto_params_2019_04_30_ground_truth(tmp_path: Path) -> None:
     expected = {
         "features": {
             "theta_rate": 56.20589403674875,
-            "x0": 0.7425544189342311,
-            "path_quality_gamma": 2.0,
+            "x0": 0.6511032548612229,
+            "path_quality_gamma": 3.0,
         },
         "portfolio": {"sigma_target": 0.14824680700851597},
         "signals": {
