@@ -14,6 +14,10 @@
 |-- test_beta_convex_hull.py
 |-- test_beta_ols.py
 |-- test_beta_stability.py
+|-- test_auto_params_2019_04_30.py
+|-- test_auto_params_2023_04_28.py
+|-- test_dynamic_params_2019_04_30.py
+|-- test_features_2019_04_30.py
 |-- test_proxy_composite.py
 |-- test_repo_upsert.py
 |-- test_series_utils.py

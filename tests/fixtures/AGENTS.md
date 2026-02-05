@@ -13,6 +13,8 @@
 |-- mini_factors.csv
 |-- mini_nav.csv
 |-- mini_bucket.yaml
+|-- auto_params_2019-04-30/
+|-- auto_params_2023-04-28/
 |-- golden/
 `-- expected/
 ```

@@ -74,9 +74,6 @@ uv run python -m src.bucket_reco.runner \
 | `features.long_window` | Long moving-average window length (daily). |
 | `features.vol_window` | Volatility rolling window length (daily). |
 | `features.annualize` | Annualization factor for volatility (e.g., 252). |
-| `features.theta_on` | Gate on-threshold for hysteresis. |
-| `features.theta_off` | Gate off-threshold for hysteresis. |
-| `features.theta_minus` | Downward-drift threshold. |
 | `features.sigma_min` | Volatility floor for sigma_eff. |
 | `features.sigma_max` | Volatility cutoff center for f_sigma. |
 | `features.kappa_sigma` | Logistic slope for f_sigma. |
@@ -91,8 +88,13 @@ uv run python -m src.bucket_reco.runner \
 | `portfolio.risk_buckets` | Risk bucket names used for normalization and risk sleeve allocation. |
 | `portfolio.bucket_signal_names` | Required bucket-level signal names. |
 | `auto_params.enabled` | Enable auto-parameter selection at startup (overrides config values). |
-| `auto_params.window_years` | Historical window size (years) for auto-parameter estimation. |
+| `auto_params.auto_param_window_size` | Historical window size (years) for auto-parameter estimation. |
 | `auto_params.min_points` | Minimum trading days required before auto-parameter estimation. |
+| `auto_params.path` | Auto-parameter output path (JSON). |
+| `dynamic_params.path` | Dynamic-parameter output path (JSON). |
+| `dynamic_params.q_on` | Quantile for theta_on (dynamic param). |
+| `dynamic_params.q_off` | Quantile for theta_off (dynamic param). |
+| `dynamic_params.q_minus` | Quantile for theta_minus (dynamic param). |
 | `bucket_reco.proxy.weight_mode` | Proxy weight mode (`equal` or `inv_vol`). |
 | `bucket_reco.proxy.annualize` | Annualization factor for volatility (e.g., 252). |
 | `bucket_reco.proxy.clip_min` | Minimum weight clip for proxy weights (nullable). |

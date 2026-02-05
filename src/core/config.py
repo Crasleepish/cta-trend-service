@@ -196,6 +196,9 @@ class AutoParamConfig(BaseModel):
 
 class DynamicParamConfig(BaseModel):
     path: str = "config/dynamic_params.json"
+    q_on: float = 0.7
+    q_off: float = 0.5
+    q_minus: float = 0.7
 
 
 def load_app_config(path: Path | None = None) -> AppConfig:

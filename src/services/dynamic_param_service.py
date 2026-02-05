@@ -12,7 +12,7 @@ import pandas as pd
 
 from ..core.config import AppConfig
 from ..repo.inputs import BetaRepo, BucketRepo, MarketRepo, TradeCalendarRepo
-from ..utils.trading_calendar import TradingCalendar, sample_week_last_trading_day
+from ..utils.trading_calendar import TradingCalendar
 
 logger = logging.getLogger(__name__)
 
@@ -51,15 +51,13 @@ class DynamicParamService:
 
         calendar_rows = self.calendar_repo.get_range(start_date, end_date)
         if not calendar_rows:
-            return self._fallback(start_date, end_date, ["trade_calendar empty"])
+            raise ValueError("dynamic params: trade_calendar empty")
 
         calendar = TradingCalendar.from_dates(row["date"] for row in calendar_rows)
         trade_dates = list(calendar.dates)
         if len(trade_dates) < self.config.auto_params.min_points:
-            return self._fallback(
-                start_date,
-                end_date,
-                [f"trade_calendar points too few: {len(trade_dates)}"],
+            raise ValueError(
+                f"dynamic params: trade_calendar points too few: {len(trade_dates)}"
             )
 
         window_start = trade_dates[0].date()
@@ -76,11 +74,11 @@ class DynamicParamService:
         ]
         proxy_codes = [code for code in bucket_proxies.values() if code]
         if not proxy_codes:
-            return self._fallback(window_start, window_end, ["no bucket proxies available"])
+            raise ValueError("dynamic params: no bucket proxies available")
 
         market_rows = self.market_repo.get_range(proxy_codes, window_start, window_end)
         if not market_rows:
-            return self._fallback(window_start, window_end, ["no index_hist data"])
+            raise ValueError("dynamic params: no index_hist data")
 
         price_series = self._build_price_series(market_rows, bucket_proxies, calendar=calendar)
         bucket_params = self._estimate_bucket_params(price_series, calendar, warnings)
@@ -106,8 +104,12 @@ class DynamicParamService:
             window_end=window_end,
             params=params,
             warnings=warnings,
-            used_fallback=bucket_params["fallback"],
+            used_fallback=False,
         )
+        if bucket_params["fallback"]:
+            raise ValueError(
+                "dynamic params: insufficient data for bucket stats; see warnings"
+            )
         self._persist(result)
         return result
 
@@ -128,30 +130,6 @@ class DynamicParamService:
 
         if "tilt_scales" in signals:
             config.signals.tilt_scales = dict(signals["tilt_scales"])
-
-    def _fallback(self, start: date, end: date, warnings: list[str]) -> DynamicParamResult:
-        params = {
-            "features": {
-                "theta_on": self.config.features.theta_on,
-                "theta_off": self.config.features.theta_off,
-                "theta_minus": self.config.features.theta_minus,
-                "sigma_min": self.config.features.sigma_min,
-                "sigma_max": self.config.features.sigma_max,
-                "kappa_sigma": self.config.features.kappa_sigma,
-            },
-            "signals": {
-                "tilt_scales": self.config.signals.tilt_scales,
-            },
-        }
-        result = DynamicParamResult(
-            window_start=start,
-            window_end=end,
-            params=params,
-            warnings=warnings,
-            used_fallback=True,
-        )
-        self._persist(result)
-        return result
 
     def _persist(self, result: DynamicParamResult) -> None:
         payload = {
@@ -198,9 +176,9 @@ class DynamicParamService:
         calendar: TradingCalendar,
         warnings: list[str],
     ) -> dict[str, Any]:
-        q_on = 0.7
-        q_off = 0.3
-        q_minus = 0.7
+        q_on = self.config.dynamic_params.q_on
+        q_off = self.config.dynamic_params.q_off
+        q_minus = self.config.dynamic_params.q_minus
         q_min = 0.1
         q_max = 0.8
         q_hi = 0.95
@@ -220,8 +198,6 @@ class DynamicParamService:
         kappa_sigma: dict[str, float] = {}
 
         fallback = False
-        weekly_dates = sample_week_last_trading_day(calendar.dates)
-
         for bucket, series in price_series.items():
             if series.dropna().shape[0] < self.config.auto_params.min_points:
                 warnings.append(f"{bucket}: insufficient price history")
@@ -233,15 +209,15 @@ class DynamicParamService:
             ma_short = series.rolling(short_window).mean()
             ma_long = series.rolling(long_window).mean()
 
-            weekly_sigma = sigma.loc[weekly_dates].dropna()
-            weekly_t = (ma_short - ma_long).loc[weekly_dates] / weekly_sigma
-            weekly_t = weekly_t.dropna()
-            if weekly_t.empty or weekly_sigma.empty:
-                warnings.append(f"{bucket}: empty weekly stats")
+            daily_sigma = sigma.dropna()
+            daily_t = (ma_short - ma_long) / sigma
+            daily_t = daily_t.dropna()
+            if daily_t.empty or daily_sigma.empty:
+                warnings.append(f"{bucket}: empty daily stats")
                 fallback = True
                 continue
 
-            positive = weekly_t[weekly_t > 0]
+            positive = daily_t[daily_t > 0]
             if positive.empty:
                 warnings.append(f"{bucket}: no positive trend samples")
                 fallback = True
@@ -252,14 +228,14 @@ class DynamicParamService:
                     warnings.append(f"{bucket}: non-positive theta_on/off")
                     fallback = True
 
-            negative = weekly_t[weekly_t < 0].abs()
+            negative = daily_t[daily_t < 0].abs()
             if negative.empty:
                 warnings.append(f"{bucket}: no negative trend samples")
                 fallback = True
             else:
                 theta_minus[bucket] = float(negative.quantile(q_minus))
 
-            sigma_vals = weekly_sigma.dropna()
+            sigma_vals = daily_sigma.dropna()
             sigma_min_val = max(
                 float(sigma_vals.quantile(q_min)),
                 float(c_min * sigma_vals.median()),

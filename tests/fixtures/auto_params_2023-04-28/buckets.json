@@ -1,0 +1,32 @@
+[
+  {
+    "bucket_name":"CASH",
+    "bucket_proxy":null,
+    "assets":"000602.OF"
+  },
+  {
+    "bucket_name":"CYCLE",
+    "bucket_proxy":"000805.CSI",
+    "assets":"690008.OF,164304.OF,004195.OF"
+  },
+  {
+    "bucket_name":"GOLD",
+    "bucket_proxy":"Au99.99.SGE",
+    "assets":"004253.OF"
+  },
+  {
+    "bucket_name":"GROWTH",
+    "bucket_proxy":"399006.SZ",
+    "assets":"004744.OF,002236.OF,004409.OF"
+  },
+  {
+    "bucket_name":"RATE",
+    "bucket_proxy":"H11004.CSI",
+    "assets":"003377.OF"
+  },
+  {
+    "bucket_name":"VALUE",
+    "bucket_proxy":"NYVAL.IN",
+    "assets":"005562.OF,000312.OF,003194.OF"
+  }
+]

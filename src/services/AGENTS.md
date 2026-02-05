@@ -37,3 +37,7 @@
 * 服务只做编排，不内嵌公式细节。
 * 不直接读取 env，配置由 AppConfig 注入。
 * 运行失败必须写入 `job_run.error_stack`，不得吞异常。
+* 参数三层设计（强制）：
+  * 固定超参数：仅在 `app.yaml` 配置（如 `theta_rate`、`tilt_lookback_days`）。
+  * 自动超参数：由 `AutoParamService` 计算写入 `config/auto_params.json`，仅当 `auto_params.enabled=true` 时覆盖固定超参数；缺失时回退到固定超参数。
+  * 动态参数：由 `DynamicParamService` 计算写入 `config/dynamic_params.json`，必须存在且必须生效（不可 fallback）；缺失/样本不足直接报错退出。

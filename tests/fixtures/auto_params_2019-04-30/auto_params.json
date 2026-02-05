@@ -7,9 +7,9 @@
   },
   "params": {
     "features": {
-      "theta_rate": 56.20589403674875,
-      "x0": 0.6511032548612229,
-      "path_quality_gamma": 3.0
+      "theta_rate": 56.26736507697057,
+      "x0": 0.6179678437467533,
+      "path_quality_gamma": 1.0253638828787857
     },
     "portfolio": {
       "sigma_target": 0.14824680700851597

@@ -17,7 +17,7 @@ from ..repo.inputs import (
     MarketRepo,
     TradeCalendarRepo,
 )
-from ..utils.trading_calendar import TradingCalendar, sample_week_last_trading_day
+from ..utils.trading_calendar import TradingCalendar
 
 logger = logging.getLogger(__name__)
 
@@ -204,8 +204,6 @@ class AutoParamService:
         long_window = self.config.features.long_window
         vol_window = self.config.features.vol_window
         annualize = self.config.features.annualize
-        weekly_dates = sample_week_last_trading_day(calendar.dates)
-
         trend_by_bucket: dict[str, pd.Series] = {}
         for bucket, series in price_series.items():
             if series.dropna().shape[0] < self.config.auto_params.min_points:
@@ -215,13 +213,12 @@ class AutoParamService:
             sigma = log_ret.rolling(vol_window).std(ddof=1) * np.sqrt(annualize)
             ma_short = series.rolling(short_window).mean()
             ma_long = series.rolling(long_window).mean()
-            weekly_sigma = sigma.loc[weekly_dates].dropna()
-            weekly_t = (ma_short - ma_long).loc[weekly_dates] / weekly_sigma
-            weekly_t = weekly_t.dropna()
-            if weekly_t.empty or weekly_sigma.empty:
-                warnings.append(f"{bucket}: empty weekly stats")
+            daily_t = (ma_short - ma_long) / sigma
+            daily_t = daily_t.dropna()
+            if daily_t.empty:
+                warnings.append(f"{bucket}: empty daily stats")
                 continue
-            trend_by_bucket[bucket] = weekly_t
+            trend_by_bucket[bucket] = daily_t
         return trend_by_bucket
 
     def _estimate_theta_rate(
@@ -326,10 +323,11 @@ class AutoParamService:
         gamma_default = float(gamma_default_raw)
 
         path_quality_window = int(self.config.features.path_quality_window_days)
-        weekly_dates = sample_week_last_trading_day(calendar.dates)
-
+        risk_buckets = set(self.config.portfolio.risk_buckets or [])
         z_weekly_by_bucket: dict[str, pd.Series] = {}
         for bucket, series in price_series.items():
+            if risk_buckets and bucket not in risk_buckets:
+                continue
             roll_min = series.rolling(path_quality_window, min_periods=path_quality_window).min()
             roll_max = series.rolling(path_quality_window, min_periods=path_quality_window).max()
             runup = np.log(series / roll_min)
@@ -337,33 +335,20 @@ class AutoParamService:
             denom = runup + drawdown
             z_daily = runup / denom
             z_daily = z_daily.where(denom != 0, 0.5)
-            z_weekly = z_daily.loc[weekly_dates].dropna()
-            if not z_weekly.empty:
-                z_weekly_by_bucket[bucket] = z_weekly
+            z_daily = z_daily.dropna()
+            if not z_daily.empty:
+                z_weekly_by_bucket[bucket] = z_daily
 
         if not z_weekly_by_bucket:
             warnings.append("path_quality_z empty; fallback to config x0/gamma")
             return {"x0": x0_default, "path_quality_gamma": gamma_default, "fallback": True}
 
         x0_values: list[float] = []
-        gamma_values: list[float] = []
-
-        for bucket, z_weekly in z_weekly_by_bucket.items():
+        for z_weekly in z_weekly_by_bucket.values():
             z_weekly = z_weekly.dropna()
             if z_weekly.empty:
                 continue
-            x0_val = float(z_weekly.quantile(x0_quantile))
-            x0_values.append(x0_val)
-            above = z_weekly[z_weekly > x0_val]
-            if above.empty:
-                continue
-            zq = float(above.quantile(gamma_quantile))
-            ratio = (zq - x0_val) / (1 - x0_val) if x0_val < 1 else 0.0
-            if ratio <= 0 or ratio >= 1:
-                continue
-            gamma_val = float(np.log(gamma_target) / np.log(ratio))
-            if np.isfinite(gamma_val) and gamma_val > 0:
-                gamma_values.append(gamma_val)
+            x0_values.append(float(z_weekly.quantile(x0_quantile)))
 
         if not x0_values:
             warnings.append("path_quality_z all NaN; fallback to config x0/gamma")
@@ -373,6 +358,19 @@ class AutoParamService:
             x0_agg = float(pd.Series(x0_values).median())
         else:
             x0_agg = float(np.mean(x0_values))
+
+        gamma_values: list[float] = []
+        for z_weekly in z_weekly_by_bucket.values():
+            z_weekly = z_weekly.dropna()
+            if z_weekly.empty:
+                continue
+            zq = float(z_weekly.quantile(gamma_quantile))
+            ratio = (zq - x0_agg) / (1 - x0_agg) if x0_agg < 1 else 0.0
+            if ratio <= 0 or ratio >= 1:
+                continue
+            gamma_val = float(np.log(gamma_target) / np.log(ratio))
+            if np.isfinite(gamma_val) and gamma_val > 0:
+                gamma_values.append(gamma_val)
 
         if gamma_values:
             if len(x0_values) > 2:

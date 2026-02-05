@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-02-05T09:35:49.010033+00:00",
+  "window": {
+    "start": "2019-04-30",
+    "end": "2023-04-28",
+    "years": 4
+  },
+  "params": {
+    "features": {
+      "theta_rate": 74.13766828696946,
+      "x0": 0.7426620276523406,
+      "path_quality_gamma": 1.6780722151282212
+    },
+    "portfolio": {
+      "sigma_target": 0.16459747930621416
+    },
+    "signals": {
+      "tilt_lookback_days": 20
+    }
+  },
+  "warnings": [],
+  "fallback": false
+}
