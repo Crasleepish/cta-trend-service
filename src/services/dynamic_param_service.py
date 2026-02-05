@@ -179,11 +179,11 @@ class DynamicParamService:
         q_on = self.config.dynamic_params.q_on
         q_off = self.config.dynamic_params.q_off
         q_minus = self.config.dynamic_params.q_minus
-        q_min = 0.1
-        q_max = 0.8
-        q_hi = 0.95
-        eps = 0.1
-        c_min = 0.5
+        q_min = self.config.dynamic_params.q_min
+        q_max = self.config.dynamic_params.q_max
+        q_hi = self.config.dynamic_params.q_hi
+        eps = self.config.dynamic_params.eps
+        c_min = self.config.dynamic_params.c_min
 
         short_window = self.config.features.short_window
         long_window = self.config.features.long_window

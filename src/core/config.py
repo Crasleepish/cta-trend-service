@@ -199,6 +199,11 @@ class DynamicParamConfig(BaseModel):
     q_on: float = 0.7
     q_off: float = 0.5
     q_minus: float = 0.7
+    q_min: float = 0.1
+    q_max: float = 0.8
+    q_hi: float = 0.95
+    c_min: float = 0.5
+    eps: float = 0.1
 
 
 def load_app_config(path: Path | None = None) -> AppConfig:

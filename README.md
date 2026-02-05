@@ -74,9 +74,6 @@ uv run python -m src.bucket_reco.runner \
 | `features.long_window` | Long moving-average window length (daily). |
 | `features.vol_window` | Volatility rolling window length (daily). |
 | `features.annualize` | Annualization factor for volatility (e.g., 252). |
-| `features.sigma_min` | Volatility floor for sigma_eff. |
-| `features.sigma_max` | Volatility cutoff center for f_sigma. |
-| `features.kappa_sigma` | Logistic slope for f_sigma. |
 | `features.rate_k` | Logistic slope for RATE preference. |
 | `features.theta_rate` | RATE preference center (default 0). |
 | `signals.tilt_factors` | Factor names used for tilt tendency vector. |
@@ -95,6 +92,11 @@ uv run python -m src.bucket_reco.runner \
 | `dynamic_params.q_on` | Quantile for theta_on (dynamic param). |
 | `dynamic_params.q_off` | Quantile for theta_off (dynamic param). |
 | `dynamic_params.q_minus` | Quantile for theta_minus (dynamic param). |
+| `dynamic_params.q_min` | Quantile for sigma_min floor (dynamic param). |
+| `dynamic_params.q_max` | Quantile for sigma_max cap (dynamic param). |
+| `dynamic_params.q_hi` | High quantile for kappa calibration (dynamic param). |
+| `dynamic_params.c_min` | Median multiplier for sigma_min floor. |
+| `dynamic_params.eps` | Logistic epsilon for kappa calibration. |
 | `bucket_reco.proxy.weight_mode` | Proxy weight mode (`equal` or `inv_vol`). |
 | `bucket_reco.proxy.annualize` | Annualization factor for volatility (e.g., 252). |
 | `bucket_reco.proxy.clip_min` | Minimum weight clip for proxy weights (nullable). |
