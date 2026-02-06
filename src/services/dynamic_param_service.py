@@ -56,9 +56,7 @@ class DynamicParamService:
         calendar = TradingCalendar.from_dates(row["date"] for row in calendar_rows)
         trade_dates = list(calendar.dates)
         if len(trade_dates) < self.config.auto_params.min_points:
-            raise ValueError(
-                f"dynamic params: trade_calendar points too few: {len(trade_dates)}"
-            )
+            raise ValueError(f"dynamic params: trade_calendar points too few: {len(trade_dates)}")
 
         window_start = trade_dates[0].date()
         window_end = trade_dates[-1].date()
@@ -66,12 +64,19 @@ class DynamicParamService:
 
         buckets = self.bucket_repo.get_range()
         bucket_proxies = {bucket["bucket_name"]: bucket.get("bucket_proxy") for bucket in buckets}
+        equity_buckets = set(self.config.dynamic_params.equity_risk_buckets)
+        if not equity_buckets:
+            raise ValueError("dynamic params: equity_risk_buckets empty")
+
         asset_codes = [
             code.strip()
             for bucket in buckets
+            if bucket.get("bucket_name") in equity_buckets
             for code in (bucket.get("assets") or "").split(",")
             if code.strip()
         ]
+        if not asset_codes:
+            raise ValueError("dynamic params: no assets for equity_risk_buckets")
         proxy_codes = [code for code in bucket_proxies.values() if code]
         if not proxy_codes:
             raise ValueError("dynamic params: no bucket proxies available")
@@ -83,7 +88,7 @@ class DynamicParamService:
         price_series = self._build_price_series(market_rows, bucket_proxies, calendar=calendar)
         bucket_params = self._estimate_bucket_params(price_series, calendar, warnings)
 
-        tilt_scales = self._estimate_tilt_scales(window_start, window_end, asset_codes, warnings)
+        tilt_scales = self._estimate_tilt_scales(window_start, window_end, asset_codes)
 
         params = {
             "features": {
@@ -107,9 +112,7 @@ class DynamicParamService:
             used_fallback=False,
         )
         if bucket_params["fallback"]:
-            raise ValueError(
-                "dynamic params: insufficient data for bucket stats; see warnings"
-            )
+            raise ValueError("dynamic params: insufficient data for bucket stats; see warnings")
         self._persist(result)
         return result
 
@@ -271,17 +274,16 @@ class DynamicParamService:
         start_date: date,
         end_date: date,
         asset_codes: list[str],
-        warnings: list[str],
     ) -> dict[str, float]:
         tilt_factors = self.config.signals.tilt_factors
-        beta_rows = []
-        if asset_codes:
-            beta_rows = self.beta_repo.get_range(asset_codes, start_date, end_date)
+        if not asset_codes:
+            raise ValueError("dynamic params: empty asset_codes for tilt_scales")
+        beta_rows = self.beta_repo.get_range(asset_codes, start_date, end_date)
         beta_df = pd.DataFrame(beta_rows)
         if beta_df.empty:
-            warnings.append("fund_beta empty; using config tilt_scales")
-            return dict(self.config.signals.tilt_scales)
+            raise ValueError("dynamic params: fund_beta empty for tilt_scales")
 
-        beta_df = beta_df.sort_values("date").groupby("code").tail(1)
         iqr = beta_df[tilt_factors].quantile(0.75) - beta_df[tilt_factors].quantile(0.25)
-        return {k: float(v) if v > 0 else 1.0 for k, v in iqr.items()}
+        if (iqr <= 0).any():
+            raise ValueError("dynamic params: invalid tilt_scales (non-positive IQR)")
+        return {k: float(v) for k, v in iqr.items()}

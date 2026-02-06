@@ -196,6 +196,7 @@ class AutoParamConfig(BaseModel):
 
 class DynamicParamConfig(BaseModel):
     path: str = "config/dynamic_params.json"
+    equity_risk_buckets: list[str] = Field(default_factory=lambda: ["VALUE", "GROWTH", "CYCLE"])
     q_on: float = 0.7
     q_off: float = 0.5
     q_minus: float = 0.7

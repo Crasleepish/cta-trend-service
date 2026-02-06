@@ -89,6 +89,7 @@ uv run python -m src.bucket_reco.runner \
 | `auto_params.min_points` | Minimum trading days required before auto-parameter estimation. |
 | `auto_params.path` | Auto-parameter output path (JSON). |
 | `dynamic_params.path` | Dynamic-parameter output path (JSON). |
+| `dynamic_params.equity_risk_buckets` | Buckets used to pool tilt_scales across assets. |
 | `dynamic_params.q_on` | Quantile for theta_on (dynamic param). |
 | `dynamic_params.q_off` | Quantile for theta_off (dynamic param). |
 | `dynamic_params.q_minus` | Quantile for theta_minus (dynamic param). |

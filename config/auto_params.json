@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-02-05T06:01:21.355386+00:00",
+  "generated_at": "2026-02-06T16:37:21.329492+00:00",
   "window": {
-    "start": "2015-04-24",
-    "end": "2019-04-26",
+    "start": "2015-04-27",
+    "end": "2019-04-30",
     "years": 4
   },
   "params": {
     "features": {
-      "theta_rate": 57.02099867172448,
-      "x0": 0.6511032548612229,
-      "path_quality_gamma": 3.0
+      "theta_rate": 56.26736507697057,
+      "x0": 0.6179678437467533,
+      "path_quality_gamma": 1.0253638828787857
     },
     "portfolio": {
-      "sigma_target": 0.14821638308715904
+      "sigma_target": 0.14824680700851597
     },
     "signals": {
       "tilt_lookback_days": 20

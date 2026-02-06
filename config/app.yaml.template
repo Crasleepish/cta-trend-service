@@ -74,6 +74,7 @@ auto_params:
 
 dynamic_params:
   path: "config/dynamic_params.json"
+  equity_risk_buckets: ["VALUE", "GROWTH", "CYCLE"]
   q_on: 0.7
   q_off: 0.5
   q_minus: 0.7
