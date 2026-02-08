@@ -51,6 +51,11 @@ signals:
 
 portfolio:
   sigma_target: 0.1
+  alpha_on: 0.35
+  alpha_off: 0.75
+  dead_band: 0.0
+  max_weight_asset: 1.0
+  max_weight_bucket: 1.0
   risk_buckets: ["VALUE", "GROWTH", "CYCLE", "GOLD"]
   bucket_signal_names:
     - "T"

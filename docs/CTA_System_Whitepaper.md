@@ -887,6 +887,8 @@ Maintain last-buy timestamp $\tau_i$ for each asset $i$. Let $H_{\mathrm{hold}}$
 - $m_{i,t}=1$: selling is allowed at time $t$
 - $m_{i,t}=0$: selling is disallowed (avoid penalty)
 
+**Current implementation note:** we do **not** implement a separate minimum holding period constraint. Instead, we control turnover implicitly by **weekly rebalance frequency** and execution smoothing. This section remains as a design target.
+
 ### 10.3 Asymmetric EWMA Smoothing (Risk-off Faster Than Risk-on)
 
 Use bucket-dependent asymmetric EWMA.
@@ -912,6 +914,8 @@ $$
 
 **Trigger semantics (decision):** $d^-_{b,t}$ only changes the **adjustment speed** (typically faster de-risking). It does **not** modify signal-layer sizing and does not imply shorting.
 
+**Config fields:** `portfolio.alpha_on`, `portfolio.alpha_off`.
+
 ### 10.4 Constraint-Aware Adjustment Under Holding Restrictions (Priority Rules)
 
 When $m_{i,t}=0$, selling is infeasible. The system must remain feasible and deterministic. Priority rules:
@@ -932,6 +936,8 @@ $$
 
 (Any equivalent projection scheme is acceptable if deterministic and auditable.)
 
+**Current implementation note:** holding-period constraints are not enforced (see 10.2). This section is reserved for a future release.
+
 ### 10.5 Rebalance Dead-Band (Trade Trigger)
 
 To avoid micro-trades under NAV execution, apply a dead-band:
@@ -941,6 +947,8 @@ $$
 $$
 
 This dead-band also bounds the turnover impact of the factor tilt in Section 9.
+
+**Config field:** `portfolio.dead_band`.
 
 ### 10.6 Caps and Concentration Controls
 
@@ -959,6 +967,8 @@ $$
 $$
 
 Excess weight is redistributed deterministically into defensive buckets (RATE/CASH) or via proportional scaling.
+
+**Config fields:** `portfolio.max_weight_asset`, `portfolio.max_weight_bucket`.
 
 ### 10.7 Robustness Summary
 

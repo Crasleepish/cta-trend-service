@@ -327,6 +327,28 @@ class WeightRepo(BaseRepo):
         )
         return rebalance_date, rows
 
+    def get_latest_date_before(
+        self,
+        *,
+        strategy_id: str,
+        version: str,
+        portfolio_id: str,
+        rebalance_date: date,
+    ) -> date | None:
+        stmt = (
+            select(self._table.c.rebalance_date)
+            .where(self._table.c.strategy_id == strategy_id)
+            .where(self._table.c.version == version)
+            .where(self._table.c.portfolio_id == portfolio_id)
+            .where(self._table.c.rebalance_date < rebalance_date)
+            .order_by(desc(self._table.c.rebalance_date))
+            .limit(1)
+        )
+        row = self._fetch_one(stmt)
+        if not row:
+            return None
+        return cast(date, row["rebalance_date"])
+
     def get_history(
         self,
         *,

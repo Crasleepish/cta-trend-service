@@ -51,8 +51,8 @@ class FakeFactorRepo:
 class FakeBetaRepo:
     rows: list[dict[str, object]]
 
-    def get_range(self, codes, *_args, **_kwargs):
-        return [row for row in self.rows if row["code"] in codes]
+    def get_range(self, fund_codes, *_args, **_kwargs):
+        return [row for row in self.rows if row["code"] in fund_codes]
 
 
 @dataclass
@@ -92,6 +92,7 @@ def test_signal_service_tilt_and_golden(tmp_path: Path) -> None:
         for name, value in [
             ("T", 1.0),
             ("gate_state", 1.0),
+            ("down_drift", 0.0),
             ("sigma_ann", 0.2),
             ("sigma_eff", 0.2),
             ("f_sigma", 1.0),

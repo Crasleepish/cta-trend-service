@@ -4,7 +4,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import numpy as np
 import pandas as pd
@@ -128,7 +128,7 @@ class PortfolioService:
 
         tilt_weights = self._tilt_weights(signal_df, bucket_assets)
 
-        weights = self._build_weights(
+        target_weights = self._build_weights(
             strategy_id=strategy_id,
             version=version,
             portfolio_id=portfolio_id,
@@ -139,7 +139,17 @@ class PortfolioService:
             run_id=run_id,
         )
 
-        checks = {"weights_sum": sum(w["target_weight"] for w in weights)}
+        executed_weights = self._apply_execution_controls(
+            target_weights=target_weights,
+            signal_df=signal_df,
+            bucket_assets=bucket_assets,
+            strategy_id=strategy_id,
+            version=version,
+            portfolio_id=portfolio_id,
+            rebalance_date=rebalance_date,
+        )
+
+        checks = {"weights_sum": sum(w["target_weight"] for w in executed_weights)}
         if not np.isclose(checks["weights_sum"], 1.0, atol=1e-8):
             raise ValueError("portfolio weights do not sum to 1")
 
@@ -152,7 +162,7 @@ class PortfolioService:
             )
 
         t2 = time.perf_counter()
-        rows_upserted = self.weight_repo.upsert_many(weights)
+        rows_upserted = self.weight_repo.upsert_many(executed_weights)
         logger.info(
             "portfolio.upsert run_id=%s rebalance_date=%s elapsed=%.3fs rows=%s",
             run_id,
@@ -237,6 +247,159 @@ class PortfolioService:
         w_rate = w_def * rate_pref
         w_cash = w_def - w_rate
         return w_rate, w_cash
+
+    def _apply_execution_controls(
+        self,
+        *,
+        target_weights: list[WeightRow],
+        signal_df: pd.DataFrame,
+        bucket_assets: dict[str, list[str]],
+        strategy_id: str,
+        version: str,
+        portfolio_id: str,
+        rebalance_date: date,
+    ) -> list[WeightRow]:
+        prev = self._previous_weights(
+            strategy_id=strategy_id,
+            version=version,
+            portfolio_id=portfolio_id,
+            rebalance_date=rebalance_date,
+        )
+        if prev is None:
+            return target_weights
+        prev_weights = {row["instrument_id"]: float(row["target_weight"]) for row in prev}
+        bucket_by_asset = {
+            asset: bucket for bucket, assets in bucket_assets.items() for asset in assets
+        }
+        down_drift = self._bucket_signal(signal_df, list(bucket_assets.keys()), "down_drift")
+        adjusted: list[WeightRow] = []
+        dead_band_hits = 0
+        for row in target_weights:
+            instr = row["instrument_id"]
+            bucket = bucket_by_asset.get(instr)
+            prev_w = prev_weights.get(instr, 0.0)
+            target_w = float(row["target_weight"])
+            if abs(target_w - prev_w) <= self.config.dead_band:
+                target_w = prev_w
+                dead_band_hits += 1
+            if bucket and down_drift.get(bucket, 0.0) == 1.0:
+                alpha = self.config.alpha_off
+            else:
+                alpha = self.config.alpha_on
+            new_w = (1.0 - alpha) * prev_w + alpha * target_w
+            adjusted.append({**row, "target_weight": new_w})
+        if dead_band_hits:
+            logger.info(
+                "portfolio.exec.dead_band rebalance_date=%s hits=%s threshold=%.6f",
+                rebalance_date,
+                dead_band_hits,
+                self.config.dead_band,
+            )
+
+        capped = self._apply_caps(
+            weights=adjusted,
+            bucket_by_asset=bucket_by_asset,
+        )
+
+        total = sum(float(row["target_weight"]) for row in capped)
+        if total > 0:
+            for row in capped:
+                row["target_weight"] = float(row["target_weight"]) / total
+        return capped
+
+    def _apply_caps(
+        self,
+        *,
+        weights: list[WeightRow],
+        bucket_by_asset: dict[str, str],
+    ) -> list[WeightRow]:
+        max_asset = self.config.max_weight_asset
+        max_bucket = self.config.max_weight_bucket
+        if max_asset >= 1.0 and max_bucket >= 1.0:
+            return weights
+        weights = cast(list[WeightRow], [dict(row) for row in weights])
+        excess = 0.0
+        capped_assets = 0
+        capped_buckets = 0
+        for row in weights:
+            if row["target_weight"] > max_asset:
+                excess += row["target_weight"] - max_asset
+                row["target_weight"] = max_asset
+                capped_assets += 1
+        bucket_totals: dict[str, float] = {}
+        for row in weights:
+            bucket = bucket_by_asset.get(row["instrument_id"], "")
+            bucket_totals[bucket] = bucket_totals.get(bucket, 0.0) + float(row["target_weight"])
+        for bucket, total in list(bucket_totals.items()):
+            if total > max_bucket and bucket:
+                scale = max_bucket / total
+                for row in weights:
+                    if bucket_by_asset.get(row["instrument_id"]) == bucket:
+                        row["target_weight"] *= scale
+                excess += total - max_bucket
+                capped_buckets += 1
+        if capped_assets or capped_buckets:
+            logger.info(
+                "portfolio.exec.caps capped_assets=%s capped_buckets=%s max_asset=%.6f "
+                "max_bucket=%.6f excess=%.6f",
+                capped_assets,
+                capped_buckets,
+                max_asset,
+                max_bucket,
+                excess,
+            )
+        if excess > 0:
+            rate = None
+            cash = None
+            for row in weights:
+                bucket = bucket_by_asset.get(row["instrument_id"], "")
+                if bucket == "RATE":
+                    rate = row
+                if bucket == "CASH":
+                    cash = row
+            if rate is None and cash is None:
+                return weights
+            rate_w = float(rate["target_weight"]) if rate else 0.0
+            cash_w = float(cash["target_weight"]) if cash else 0.0
+            total_def = rate_w + cash_w
+            if total_def <= 0:
+                if cash is not None:
+                    cash["target_weight"] += excess
+            else:
+                if rate is not None:
+                    rate["target_weight"] += excess * (rate_w / total_def)
+                if cash is not None:
+                    cash["target_weight"] += excess * (cash_w / total_def)
+            logger.info(
+                "portfolio.exec.caps.redistribute excess=%.6f rate=%.6f cash=%.6f",
+                excess,
+                float(rate["target_weight"]) if rate else 0.0,
+                float(cash["target_weight"]) if cash else 0.0,
+            )
+        return weights
+
+    def _previous_weights(
+        self,
+        *,
+        strategy_id: str,
+        version: str,
+        portfolio_id: str,
+        rebalance_date: date,
+    ) -> list[WeightRow] | None:
+        prev_date = self.weight_repo.get_latest_date_before(
+            strategy_id=strategy_id,
+            version=version,
+            portfolio_id=portfolio_id,
+            rebalance_date=rebalance_date,
+        )
+        if prev_date is None:
+            return None
+        return self.weight_repo.get_by_date(
+            strategy_id=strategy_id,
+            version=version,
+            portfolio_id=portfolio_id,
+            rebalance_date=prev_date,
+        )
 
     def _tilt_weights(
         self,

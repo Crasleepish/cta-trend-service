@@ -128,6 +128,31 @@ class FakeWeightRepo:
         self.rows.extend(rows)
         return len(rows)
 
+    def get_latest_date_before(
+        self,
+        *,
+        strategy_id: str,
+        version: str,
+        portfolio_id: str,
+        rebalance_date: date,
+    ):
+        del strategy_id, version, portfolio_id
+        prev_dates = [
+            row["rebalance_date"] for row in self.rows if row["rebalance_date"] < rebalance_date
+        ]
+        return max(prev_dates) if prev_dates else None
+
+    def get_by_date(
+        self,
+        *,
+        strategy_id: str,
+        version: str,
+        portfolio_id: str,
+        rebalance_date: date,
+    ):
+        del strategy_id, version, portfolio_id
+        return [row for row in self.rows if row["rebalance_date"] == rebalance_date]
+
 
 def _load_buckets() -> list[dict[str, object]]:
     buckets = json.loads((FIXTURE_DIR / "buckets.json").read_text())
@@ -173,6 +198,18 @@ def test_portfolio_weights_2019_04_30_ground_truth() -> None:
                 "signal_name": "gate_state",
                 "bucket_id": bucket,
                 "value": 1.0 if bucket not in {"GOLD", "RATE", "CASH"} else 0.0,
+                "meta_json": {"bucket_id": bucket},
+            }
+        )
+        signals.append(
+            {
+                "strategy_id": strategy_id,
+                "version": version,
+                "instrument_id": bucket,
+                "rebalance_date": REB_DATE,
+                "signal_name": "down_drift",
+                "bucket_id": bucket,
+                "value": 0.0,
                 "meta_json": {"bucket_id": bucket},
             }
         )

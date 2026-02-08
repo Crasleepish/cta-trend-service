@@ -4,6 +4,7 @@ rebalance_date,instrument_id,signal_name,value
 2026-01-16,B1,tilt_score,0.0
 2026-01-16,B1,tilt_weight,0.054313266132787384
 2026-01-16,GROWTH,T,1.0
+2026-01-16,GROWTH,down_drift,0.0
 2026-01-16,GROWTH,f_sigma,1.0
 2026-01-16,GROWTH,gate_state,1.0
 2026-01-16,GROWTH,path_quality_g,1.0
@@ -19,6 +20,7 @@ rebalance_date,instrument_id,signal_name,value
 2026-01-16,R1,tilt_weight,1.0
 2026-01-16,RATE,T,1.0
 2026-01-16,RATE,T_RATE,0.5
+2026-01-16,RATE,down_drift,0.0
 2026-01-16,RATE,f_sigma,1.0
 2026-01-16,RATE,gate_state,1.0
 2026-01-16,RATE,path_quality_g,1.0

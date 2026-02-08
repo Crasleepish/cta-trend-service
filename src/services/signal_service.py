@@ -70,6 +70,7 @@ class SignalService:
         features_needed = [
             "T",
             "gate_state",
+            "down_drift",
             "sigma_ann",
             "sigma_eff",
             "f_sigma",
@@ -176,12 +177,13 @@ class SignalService:
             )
 
         # raw weight components for audit
-        required = ["gate_state", "T", "sigma_eff", "f_sigma", "path_quality_g"]
+        required = ["gate_state", "down_drift", "T", "sigma_eff", "f_sigma", "path_quality_g"]
         available_buckets = set(feature_df["instrument_id"].unique())
         missing_buckets = [bucket for bucket in bucket_names if bucket not in available_buckets]
         default_values = {
             "T": 0.0,
             "gate_state": 0.0,
+            "down_drift": 0.0,
             "sigma_eff": 1.0,
             "f_sigma": 1.0,
             "path_quality_g": 1.0,

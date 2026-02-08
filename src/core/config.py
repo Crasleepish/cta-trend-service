@@ -64,6 +64,11 @@ class SignalConfig(BaseModel):
 
 class PortfolioConfig(BaseModel):
     sigma_target: float = 0.1
+    alpha_on: float = 0.35
+    alpha_off: float = 0.75
+    dead_band: float = 0.0
+    max_weight_asset: float = 1.0
+    max_weight_bucket: float = 1.0
     risk_buckets: list[str] = Field(default_factory=lambda: ["VALUE", "GROWTH", "CYCLE", "GOLD"])
     bucket_signal_names: list[str] = Field(
         default_factory=lambda: [
