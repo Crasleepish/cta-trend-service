@@ -126,6 +126,19 @@ LONG_WINDOW = 60
 VOL_WINDOW = 20
 ANNUALIZE = 252
 RATE_K = 2.0
+GOLD_DATE = pd.Timestamp("2019-06-28")
+
+GOLD_2019_06_28 = {
+    "r_log_daily": 0.001718869789130015,
+    "sigma_ann": 0.15942602629183647,
+    "T": 0.2951171580118067,
+    "path_quality_z": 0.867205121516706,
+    "path_quality_g": 0.6453694613613951,
+    "gate_state": 1.0,
+    "sigma_eff": 0.15942602629183647,
+    "f_sigma": 0.1947229077426719,
+    "raw_weight": 0.2326273083269963,
+}
 
 
 def _load_buckets() -> dict[str, str]:
@@ -217,3 +230,54 @@ def test_features_2019_04_30_ground_truth() -> None:
     rate_pref = computer.rate_preference(rate_series, k=RATE_K, theta_rate=PARAMS["theta_rate"])
     _assert_close(rate_t, GROUND_TRUTH["RATE"]["T_RATE"])
     _assert_close(rate_pref.loc[REB_DATE], GROUND_TRUTH["RATE"]["rate_pref"])
+
+
+def test_gold_2019_06_28_ground_truth() -> None:
+    prices = _load_series()
+    returns = computer.log_returns(prices)
+    sigma_ann = computer.sigma_annualized(returns, window=VOL_WINDOW, annualize=ANNUALIZE)
+    trend = computer.trend_strength(
+        prices, sigma_ann, short_window=SHORT_WINDOW, long_window=LONG_WINDOW
+    )
+    path_z = computer.path_quality_z(prices, window_days=40)
+    path_g = computer.path_quality_g(path_z, x0=PARAMS["x0"], gamma=PARAMS["path_quality_gamma"])
+
+    weekly_trend = sampler.weekly_history(
+        trend, calendar=prices.index, rebalance_date=GOLD_DATE.date()
+    )
+    weekly_sigma = sampler.weekly_history(
+        sigma_ann, calendar=prices.index, rebalance_date=GOLD_DATE.date()
+    )
+
+    gate = computer.hysteresis_gate(
+        weekly_trend[["GOLD"]],
+        theta_on=PARAMS["theta_on"]["GOLD"],
+        theta_off=PARAMS["theta_off"]["GOLD"],
+    )["GOLD"]
+
+    sigma_eff = computer.sigma_eff(
+        weekly_sigma[["GOLD"]], sigma_min=PARAMS["sigma_min"]["GOLD"]
+    )["GOLD"]
+    f_sigma = computer.tradability_filter(
+        weekly_sigma[["GOLD"]],
+        sigma_max=PARAMS["sigma_max"]["GOLD"],
+        kappa=PARAMS["kappa_sigma"]["GOLD"],
+    )["GOLD"]
+
+    raw_weight = (
+        gate.loc[GOLD_DATE]
+        * trend.loc[GOLD_DATE, "GOLD"]
+        * path_g.loc[GOLD_DATE, "GOLD"]
+        * f_sigma.loc[GOLD_DATE]
+        * (1.0 / sigma_eff.loc[GOLD_DATE])
+    )
+
+    _assert_close(returns.loc[GOLD_DATE, "GOLD"], GOLD_2019_06_28["r_log_daily"])
+    _assert_close(sigma_ann.loc[GOLD_DATE, "GOLD"], GOLD_2019_06_28["sigma_ann"])
+    _assert_close(trend.loc[GOLD_DATE, "GOLD"], GOLD_2019_06_28["T"])
+    _assert_close(path_z.loc[GOLD_DATE, "GOLD"], GOLD_2019_06_28["path_quality_z"])
+    _assert_close(path_g.loc[GOLD_DATE, "GOLD"], GOLD_2019_06_28["path_quality_g"])
+    _assert_close(gate.loc[GOLD_DATE], GOLD_2019_06_28["gate_state"])
+    _assert_close(sigma_eff.loc[GOLD_DATE], GOLD_2019_06_28["sigma_eff"])
+    _assert_close(f_sigma.loc[GOLD_DATE], GOLD_2019_06_28["f_sigma"])
+    _assert_close(raw_weight, GOLD_2019_06_28["raw_weight"])
