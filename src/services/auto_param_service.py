@@ -213,7 +213,7 @@ class AutoParamService:
             sigma = log_ret.rolling(vol_window).std(ddof=1) * np.sqrt(annualize)
             ma_short = series.rolling(short_window).mean()
             ma_long = series.rolling(long_window).mean()
-            daily_t = (ma_short - ma_long) / sigma
+            daily_t = (ma_short / ma_long - 1) / sigma
             daily_t = daily_t.dropna()
             if daily_t.empty:
                 warnings.append(f"{bucket}: empty daily stats")

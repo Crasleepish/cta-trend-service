@@ -360,7 +360,7 @@ class SignalService:
                 continue
 
             score_vec = np.array([scores.get(asset, 0.0) for asset in assets])
-            weights = self._softmax(score_vec, self.config.tilt_temperature)
+            weights = self._softmax(score_vec, self.config.kappa_tilt)
             weight_map = {
                 asset: float(weight) if eligible.get(asset, False) else 0.0
                 for asset, weight in zip(assets, weights)
@@ -471,8 +471,8 @@ class SignalService:
         ]
 
     @staticmethod
-    def _softmax(scores: NDArray[np.float64], temperature: float) -> NDArray[np.float64]:
-        scaled = scores / max(temperature, 1e-12)
+    def _softmax(scores: NDArray[np.float64], kappa_tilt: float) -> NDArray[np.float64]:
+        scaled = scores / max(kappa_tilt, 1e-12)
         scaled -= scaled.max()
         exp = np.exp(scaled)
         denom = float(exp.sum())

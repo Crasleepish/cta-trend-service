@@ -59,7 +59,7 @@ class SignalConfig(BaseModel):
     tilt_lookback_days: int = 60
     tilt_scales: dict[str, float] = Field(default_factory=lambda: {"SMB": 1.0, "QMJ": 1.0})
     tilt_eps: float = 1e-12
-    tilt_temperature: float = 1.0
+    kappa_tilt: float = 0.35
 
 
 class PortfolioConfig(BaseModel):

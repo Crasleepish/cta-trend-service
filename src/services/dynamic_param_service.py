@@ -213,7 +213,7 @@ class DynamicParamService:
             ma_long = series.rolling(long_window).mean()
 
             daily_sigma = sigma.dropna()
-            daily_t = (ma_short - ma_long) / sigma
+            daily_t = (ma_short / ma_long - 1) / sigma
             daily_t = daily_t.dropna()
             if daily_t.empty or daily_sigma.empty:
                 warnings.append(f"{bucket}: empty daily stats")

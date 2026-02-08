@@ -147,7 +147,7 @@ def test_signal_service_tilt_and_golden(tmp_path: Path) -> None:
         tilt_lookback_days=60,
         tilt_scales={"SMB": 1.0, "QMJ": 1.0},
         tilt_eps=1e-12,
-        tilt_temperature=1.0,
+        kappa_tilt=0.35,
     )
 
     service = SignalService(

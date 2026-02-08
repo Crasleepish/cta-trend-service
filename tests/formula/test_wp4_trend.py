@@ -15,7 +15,7 @@ def test_wp4_trend_strength_known_value() -> None:
     sigma = computer.sigma_annualized(returns, window=4, annualize=252)
     trend = computer.trend_strength(frame, sigma, short_window=2, long_window=4)
     value = trend.iloc[-1]["B1"]
-    assert value == pytest.approx(0.0942020875, rel=1e-6)
+    assert value == pytest.approx(0.09014553826105869, rel=1e-6)
 
 
 def test_wp4_trend_strength_signs() -> None:

@@ -130,7 +130,7 @@ CTA logic is applied **at the bucket level**, and only later translated into fun
 Let $P_{b,\tau}$ be the daily close series of bucket $b$. On the weekly decision date (default: the last trading day of week $t$), sample $P_{b,t}:=P_{b,\tau(t)}$. Define the signed, risk-adjusted trend strength:
 
 $$
-T_{b,t} = \frac{MA_{\mathrm{short}}(P_{b,t}) - MA_{\mathrm{long}}(P_{b,t})}{\sigma_{b,t}},
+T_{b,t} = \frac{MA_{\mathrm{short}}(P_{b,t})/MA_{\mathrm{long}}(P_{b,t}) - 1}{\sigma_{b,t}},
 $$
 
 where $\sigma_{b,t}$ is **annualized** realized volatility computed from daily returns and sampled on the decision date (Section 6). The sign encodes direction:
@@ -732,7 +732,7 @@ Define RATE’s medium-horizon trend strength:
 Let $P_{\mathrm{RATE},\tau}$ be the daily close series for RATE. On the weekly decision date (default: the last trading day of week $t$), sample $P_{\mathrm{RATE},t}:=P_{\mathrm{RATE},\tau(t)}$ and set $\sigma_{\mathrm{RATE},t}:=\sigma_{\mathrm{RATE},\tau(t)}$ where $\sigma_{\mathrm{RATE},\tau}$ is the annualized realized volatility computed from daily returns (Section 6.1).
  
 $$
-T_{\mathrm{RATE},t}=\frac{MA_{\mathrm{short}}(P_{\mathrm{RATE},t})-MA_{\mathrm{long}}(P_{\mathrm{RATE},t})}{\sigma_{\mathrm{RATE},t}}.
+T_{\mathrm{RATE},t}=\frac{MA_{\mathrm{short}}(P_{\mathrm{RATE},t})/MA_{\mathrm{long}}(P_{\mathrm{RATE},t}) - 1}{\sigma_{\mathrm{RATE},t}}.
 $$
 
 Map to bounded preference:
@@ -804,6 +804,9 @@ $$
 \mathbf{s}_t = \tanh\!\left(\gamma_{\mathrm{tilt}}\, \tilde{\mathbf{R}}^{(H)}_t\right)\in[-1,1]^d.
 $$
 
+**Default:** set $\gamma_{\mathrm{tilt}}=1.0$ (fixed).
+
+
 (Any optional smoothing of $\mathbf{s}_t$ is not required; avoid double-counting with execution-layer EWMA.)
 
 ### 9.3 Execution Asset Exposure Vectors (Diagonal Scale Calibration)
@@ -842,16 +845,16 @@ u_{i,t}
 $$
 where $\epsilon_u>0$ is a small constant for numerical stability.
 
-Convert into bounded multipliers:
+Convert into intra-bucket tilt weights by applying softmax over the bucket’s constituent set:
 
 $$
-\mu_{i,t} = 1 + \epsilon\,\tanh(u_{i,t}),\qquad \epsilon=0.5.
+\tilde{w}_{i,t} = \frac{\exp\!\left(u_{i,t}/\kappa_{\mathrm{tilt}}\right)}{\sum_{j\in\mathcal{I}(b)} \exp\!\left(u_{j,t}/\kappa_{\mathrm{tilt}}\right)},\qquad \kappa_{\mathrm{tilt}}=0.35.
 $$
 
-Bucket-normalized intra-weights:
+Bucket-normalized intra-weights (softmax already normalized within bucket):
 
 $$
-\pi_{i\mid b,t} = \frac{\mu_{i,t}}{\sum_{j\in\mathcal{I}(b)} \mu_{j,t}}.
+\pi_{i\mid b,t} = \tilde{w}_{i,t}.
 $$
 
 Final fund-level target weights:

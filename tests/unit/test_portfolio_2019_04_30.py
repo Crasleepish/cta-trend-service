@@ -18,33 +18,33 @@ RAW_COMPONENTS = {
     "VALUE": {
         "raw_weight_component_risk_budget": 1.0,
         "raw_weight_component_gate": 1.0,
-        "raw_weight_component_trend": 4454.848484913654,
+        "raw_weight_component_trend": 0.3260451319810067,
         "raw_weight_component_inv_sigma_eff": 4.498869169929881,
-        "raw_weight_component_f_sigma": 0.6922311442703354,
+        "raw_weight_component_f_sigma": 0.7004412180819205,
         "raw_weight_component_path_quality": 0.0,
     },
     "GROWTH": {
         "raw_weight_component_risk_budget": 1.0,
         "raw_weight_component_gate": 1.0,
-        "raw_weight_component_trend": 464.980304876604,
+        "raw_weight_component_trend": 0.2907995489476288,
         "raw_weight_component_inv_sigma_eff": 4.462342566219941,
-        "raw_weight_component_f_sigma": 0.835262438716919,
+        "raw_weight_component_f_sigma": 0.8370516305791624,
         "raw_weight_component_path_quality": 0.0,
     },
     "CYCLE": {
         "raw_weight_component_risk_budget": 1.0,
         "raw_weight_component_gate": 1.0,
-        "raw_weight_component_trend": 1147.3530034114967,
+        "raw_weight_component_trend": 0.3046726278421388,
         "raw_weight_component_inv_sigma_eff": 3.3970427081278194,
-        "raw_weight_component_f_sigma": 0.6764720050615407,
+        "raw_weight_component_f_sigma": 0.6698331381409672,
         "raw_weight_component_path_quality": 0.0,
     },
     "GOLD": {
         "raw_weight_component_risk_budget": 1.0,
         "raw_weight_component_gate": 0.0,
-        "raw_weight_component_trend": -50.1768673092241,
+        "raw_weight_component_trend": -0.1764591576317693,
         "raw_weight_component_inv_sigma_eff": 16.93733917610921,
-        "raw_weight_component_f_sigma": 0.9772289012762934,
+        "raw_weight_component_f_sigma": 0.9774655971866564,
         "raw_weight_component_path_quality": 0.0,
     },
 }
@@ -60,19 +60,19 @@ SIGMA_EFF = {
 
 TILT = {
     "VALUE": {
-        "005562.OF": 0.2651729830244153,
-        "000312.OF": 0.4760980137709042,
-        "003194.OF": 0.25872900320468045,
+        "005562.OF": 0.250622618468586,
+        "000312.OF": 0.5088234999109837,
+        "003194.OF": 0.2405538816204302,
     },
     "GROWTH": {
-        "004744.OF": 0.38320359239456075,
-        "002236.OF": 0.17077945247503185,
-        "004409.OF": 0.4460169551304074,
+        "004744.OF": 0.301398789451929,
+        "002236.OF": 0.30065247198079775,
+        "004409.OF": 0.39794873856727325,
     },
     "CYCLE": {
-        "690008.OF": 0.2999549565820758,
-        "164304.OF": 0.40304464970241366,
-        "004195.OF": 0.29700039371551057,
+        "690008.OF": 0.4462122966773474,
+        "164304.OF": 0.23893863245210858,
+        "004195.OF": 0.31484907087054387,
     },
     "GOLD": {"004253.OF": 1.0},
     "RATE": {"003377.OF": 1.0},
@@ -90,12 +90,12 @@ EXPECTED_WEIGHTS = {
     "164304.OF": 0.0,
     "004195.OF": 0.0,
     "004253.OF": 0.0,
-    "003377.OF": 1.0855260078899396e-85,
-    "000602.OF": 1.0 - 1.0855260078899396e-85,
+    "003377.OF": 0.2565822702665557,
+    "000602.OF": 1.0 - 0.2565822702665557,
 }
 
 SIGMA_TARGET = 0.14824680700851597
-RATE_PREF = 6.967914891732686e-85
+RATE_PREF = 0.2565822702665557
 
 
 @dataclass

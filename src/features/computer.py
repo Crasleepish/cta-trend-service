@@ -39,7 +39,8 @@ def trend_strength(
     ma_short = prices.rolling(window=short_window, min_periods=short_window).mean()
     ma_long = prices.rolling(window=long_window, min_periods=long_window).mean()
     denom = sigma_ann.replace(0.0, np.nan)
-    return (ma_short - ma_long) / denom
+    ma_long_safe = ma_long.replace(0.0, np.nan)
+    return (ma_short / ma_long_safe - 1.0) / denom
 
 
 def path_quality_z(prices: pd.DataFrame, *, window_days: int) -> pd.DataFrame:
