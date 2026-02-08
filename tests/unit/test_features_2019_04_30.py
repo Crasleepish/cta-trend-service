@@ -255,9 +255,9 @@ def test_gold_2019_06_28_ground_truth() -> None:
         theta_off=PARAMS["theta_off"]["GOLD"],
     )["GOLD"]
 
-    sigma_eff = computer.sigma_eff(
-        weekly_sigma[["GOLD"]], sigma_min=PARAMS["sigma_min"]["GOLD"]
-    )["GOLD"]
+    sigma_eff = computer.sigma_eff(weekly_sigma[["GOLD"]], sigma_min=PARAMS["sigma_min"]["GOLD"])[
+        "GOLD"
+    ]
     f_sigma = computer.tradability_filter(
         weekly_sigma[["GOLD"]],
         sigma_max=PARAMS["sigma_max"]["GOLD"],

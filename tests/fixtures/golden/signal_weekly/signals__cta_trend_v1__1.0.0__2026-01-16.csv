@@ -1,8 +1,8 @@
 rebalance_date,instrument_id,signal_name,value
 2026-01-16,A1,tilt_score,0.9999999999989999
-2026-01-16,A1,tilt_weight,0.9456867338673594
+2026-01-16,A1,tilt_weight,0.9456867338672127
 2026-01-16,B1,tilt_score,0.0
-2026-01-16,B1,tilt_weight,0.05431326613264062
+2026-01-16,B1,tilt_weight,0.054313266132787384
 2026-01-16,GROWTH,T,1.0
 2026-01-16,GROWTH,f_sigma,1.0
 2026-01-16,GROWTH,gate_state,1.0

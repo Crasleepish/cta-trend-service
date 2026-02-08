@@ -155,6 +155,7 @@ def test_signals_2019_04_30_ground_truth() -> None:
     calendar = pd.read_csv(FIXTURE_DIR / "trade_calendar.csv", parse_dates=["date"])
     calendar["date"] = calendar["date"].dt.normalize()
     trade_dates = pd.DatetimeIndex(calendar["date"]).sort_values().unique()
+    trade_dates = trade_dates[trade_dates <= REB_DATE]
 
     factor_df = factors.set_index("date")[TILT_FACTORS].astype(float).reindex(trade_dates)
     # cumulative factor returns over H trading days (exclude current day)
@@ -169,6 +170,7 @@ def test_signals_2019_04_30_ground_truth() -> None:
 
     beta = pd.read_csv(FIXTURE_DIR / "fund_beta.csv", parse_dates=["date"])
     beta["date"] = beta["date"].dt.normalize()
+    beta.columns = [c.lower() for c in beta.columns]
     exposures = beta[beta["date"] == REB_DATE].set_index("code")[["smb", "qmj"]].astype(float)
 
     for bucket, assets in buckets.items():
@@ -184,7 +186,8 @@ def test_signals_2019_04_30_ground_truth() -> None:
             if asset not in exposures.index:
                 eligible[asset] = False
                 continue
-            vector = exposures.loc[asset].values / pd.Series(TILT_SCALES).reindex(TILT_FACTORS).values
+            scales = pd.Series(TILT_SCALES).reindex(TILT_FACTORS).values
+            vector = exposures.loc[asset].values / scales
             if np.any(pd.isna(vector)):
                 eligible[asset] = False
                 continue
