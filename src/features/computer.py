@@ -132,7 +132,7 @@ def build_feature_frame(
     instrument_id_label: str = "instrument_id",
     value_label: str = "value",
 ) -> pd.DataFrame:
-    stacked = data.stack(dropna=True).rename(value_label).reset_index()
+    stacked = data.stack(future_stack=True).rename(value_label).reset_index()
     if "level_0" in stacked.columns:
         stacked = stacked.rename(columns={"level_0": "calc_date"})
     if "date" in stacked.columns and "calc_date" not in stacked.columns:
